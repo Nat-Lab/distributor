@@ -56,7 +56,7 @@ void DistributorClient::Start () {
 
     _running = true;
     _state = S_CONNECT;
-    _last_recv = time (NULL); // to prevent disconnect first
+    _last_recv = 0;
 
     NicStart();
 
@@ -310,7 +310,7 @@ void DistributorClient::Pinger () {
                 SendMsg(M_KEEPALIVE_REQUEST);
             }
 
-            if (lastrecv_diff >= DIST_CLIENT_RETRY * DIST_CLIENT_KEEPALIVE) {
+            if (lastrecv_diff >= DIST_CLIENT_RETRY * DIST_CLIENT_KEEPALIVE && _state >= S_CONNECTED) {
                 log_warn("Nothing received from server for %" PRIi64 " seconds, disconnect and go idle.\n", lastrecv_diff);
                 SendMsg(M_DISCONNECT);
                 _state = S_IDLE;
