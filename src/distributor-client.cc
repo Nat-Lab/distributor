@@ -56,6 +56,7 @@ void DistributorClient::Start () {
 
     _running = true;
     _state = S_CONNECT;
+    _last_recv = time (NULL); // to prevent disconnect first
 
     NicStart();
 
