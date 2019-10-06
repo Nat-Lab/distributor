@@ -102,16 +102,7 @@ bool Fdb::Insert (port_t port, const struct ether_addr &addr) {
     }
 
     std::pair<fdb_t::iterator, bool> rslt = _fdb.insert(std::make_pair(FdbKey(addr), FdbValue(port)));
-
-    // already exist, update last seen
-    if (!rslt.second) {
-        (*(rslt.first)).second.Refresh(); 
-        (*(rslt.first)).second.SetPort(port);
-        log_debug("Fdb%" PRInet ": Refreshed: %s@%" PRIport "\n", _network, ether_ntoa(&addr), port);
-    } else {
-        log_info("Fdb%" PRInet ": Inserted: %s@%" PRIport "\n", _network, ether_ntoa(&addr), port);
-    }
-    
+    log_info("Fdb%" PRInet ": Inserted: %s@%" PRIport "\n", _network, ether_ntoa(&addr), port);
     return rslt.second;
 }
 
