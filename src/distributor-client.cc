@@ -241,7 +241,7 @@ void DistributorClient::SocketWorker () {
                         continue;
                     }
                     default: {
-                        log_warn("Out-of-context message of type %d received in CONNECT state.\n", msg_hdr->msg_type);
+                        log_warn("Out-of-context message of type %d received in CONNECTED state.\n", msg_hdr->msg_type);
                         continue;
                     }
                 }
