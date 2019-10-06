@@ -39,7 +39,7 @@ void TapClient::NicStart () {
 
     struct ifreq ifr;
     memset(&ifr, 0, sizeof(struct ifreq));
-    ifr.ifr_flags = IFF_TAP | IFF_NO_PI;
+    ifr.ifr_flags = IFF_TAP | IFF_NO_PI | IFF_UP | IFF_RUNNING;
     strncpy(ifr.ifr_name, _tap_name, IFNAMSIZ);
 
     int ioctl_ret = ioctl(_fd, TUNSETIFF, &ifr);
@@ -51,11 +51,17 @@ void TapClient::NicStart () {
     strncpy(_tap_name, ifr.ifr_name, IFNAMSIZ);
     log_info("TAP opened: %s\n", _tap_name);
 
-    ifr.ifr_flags |= IFF_UP;
-    ioctl_ret = ioctl(_fd, SIOCSIFFLAGS, &ifr);
+    int iofd = socket(AF_INET, SOCK_DGRAM, 0);
+    if (iofd < 0) {
+        log_warn("socket(): %s. The client MIGHT NOT work.\n", strerror(errno));
+    }
+
+    ifr.ifr_flags |= IFF_UP | IFF_RUNNING;
+    ioctl_ret = ioctl(iofd, SIOCSIFFLAGS, &ifr);
     if (ioctl_ret < 0) {
         log_warn("SIOCSIFFLAGS (IFF_UP) ioctl(): %s. The client MIGHT NOT work.\n", strerror(errno));
     }
+    close(iofd);
 }
 
 void TapClient::NicStop () {
