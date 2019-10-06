@@ -55,7 +55,7 @@ void DistributorClient::Start () {
     }
 
     _running = true;
-    _state = S_CONNECT;
+    _state = S_IDLE;
     _last_recv = 0;
 
     NicStart();
@@ -64,7 +64,7 @@ void DistributorClient::Start () {
     _threads.push_back(std::thread(&DistributorClient::NicWorker, this));
     _threads.push_back(std::thread(&DistributorClient::Pinger, this));
 
-    log_info("Clinet ready.\n");
+    log_info("Client ready.\n");
 }
 
 void DistributorClient::Stop () {
@@ -300,8 +300,10 @@ void DistributorClient::Pinger () {
         std::unique_lock<std::mutex> lock (_pinger_mtx);
         if (_state == S_IDLE) {
             log_debug("Client running but idle, send init keepalive to server.\n");
-            SendMsg(M_KEEPALIVE_REQUEST);
             _state = S_CONNECT;
+            SendMsg(M_KEEPALIVE_REQUEST);
+        } else if (_state == S_CONNECT) {
+            SendMsg(M_KEEPALIVE_REQUEST);
         } else {
             int64_t lastsent_diff = time(NULL) - _last_sent;
             int64_t lastrecv_diff = time(NULL) - _last_recv;
@@ -311,7 +313,7 @@ void DistributorClient::Pinger () {
                 SendMsg(M_KEEPALIVE_REQUEST);
             }
 
-            if (lastrecv_diff >= DIST_CLIENT_RETRY * DIST_CLIENT_KEEPALIVE && _state >= S_CONNECTED) {
+            if (lastrecv_diff >= DIST_CLIENT_RETRY * DIST_CLIENT_KEEPALIVE) {
                 log_warn("Nothing received from server for %" PRIi64 " seconds, disconnect and go idle.\n", lastrecv_diff);
                 SendMsg(M_DISCONNECT);
                 _state = S_IDLE;
