@@ -55,6 +55,7 @@ void DistributorClient::Start () {
     }
 
     if (!NicStart()) {
+        close(_fd);
         log_error("Failed to bring up NIC.\n");
         return;
     }
@@ -76,7 +77,7 @@ void DistributorClient::Stop () {
         return;
     }
 
-    log_debug("Request Disconnect socket...\n");
+    log_debug("Request Disconnect...\n");
     SendMsg(M_DISCONNECT);
 
     log_debug("Closing socket...\n");
