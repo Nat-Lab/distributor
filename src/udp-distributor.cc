@@ -302,6 +302,7 @@ void UdpDistributor::Worker (int id) {
                 log_warn("Worker%d: Insert port -> info mapping returned element exist.\n", id);
             }
             
+            iit->second->Associate();
             log_info("Worker%d: New client from %s:%d, assigned port: %" PRIport ".\n", id, inet_ntoa(client_addr.sin_addr), ntohs(client_addr.sin_port), port);
         }
 
