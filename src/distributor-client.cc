@@ -164,6 +164,7 @@ void DistributorClient::SocketWorker () {
                         SendMsg(M_KEEPALIVE_RESPOND);
                         continue;
                     }
+                    case M_NEED_ASSOCIATION:
                     case M_KEEPALIVE_RESPOND: {
                         log_info("Connected to server, associating with network %" PRInet "...\n", _net);
                         _state = S_CONNECTED;
