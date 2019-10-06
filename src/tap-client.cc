@@ -39,7 +39,7 @@ bool TapClient::NicStart () {
 
     struct ifreq ifr;
     memset(&ifr, 0, sizeof(struct ifreq));
-    ifr.ifr_flags = IFF_TAP | IFF_NO_PI | IFF_UP | IFF_RUNNING;
+    ifr.ifr_flags = IFF_TAP | IFF_NO_PI;
     strncpy(ifr.ifr_name, _tap_name, IFNAMSIZ);
 
     int ioctl_ret = ioctl(_fd, TUNSETIFF, &ifr);
@@ -71,7 +71,7 @@ bool TapClient::NicStop () {
         log_info("Not started.\n");
         return false;
     }
-
+    log_info("Deallocate TAP interface...\n");
     int ioctl_ret = ioctl(_fd, TUNSETPERSIST, 0);
     if (ioctl_ret < 0) {
         log_warn("TUNSETPERSIST (0) ioctl(): %s. \n", strerror(errno));
