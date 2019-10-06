@@ -82,7 +82,7 @@ bool Switch::Unplug (port_t port) {
     while (it != its.second) {
         if (it->second == port) {
             found = true;
-            log_logic("Removed port %" PRIport " from network %" PRInet ".\n", port, net);
+            log_logic("Removed port %" PRIport " from network %" PRInet ".\n", port, _net);
             it = _nets.erase(it);
         } else it++;
     }
@@ -107,7 +107,7 @@ bool Switch::Forward (port_t src_port, const uint8_t *frame, size_t size) {
         return true;
     }
 
-    log_logic("Got packet on port %" PRIport ".\n", port);
+    log_logic("Got packet on port %" PRIport ".\n", src_port);
     const struct ether_header *hdr = (const struct ether_header *) frame;
     const struct ether_addr *src = (const struct ether_addr *) hdr->ether_shost;
     const struct ether_addr *dst = (const struct ether_addr *) hdr->ether_dhost;
