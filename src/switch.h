@@ -56,7 +56,7 @@ private:
     void Broadcast (port_t src_port, net_t net, const uint8_t *frame, size_t size);
 
     // Check if an ethernet address is broadcast.
-    static bool IsBroadcast (const ether_addr_t &addr);
+    static bool IsBroadcast (const struct ether_addr &addr);
 
     // port to network mapping
     portsmap_t _ports;

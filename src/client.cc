@@ -2,6 +2,7 @@
 #include "log.h"
 #include <unistd.h>
 #include <arpa/inet.h>
+#include <string.h>
 
 namespace distributor {
 

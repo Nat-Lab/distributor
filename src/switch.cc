@@ -102,15 +102,15 @@ bool Switch::Plugged (port_t port) const {
 bool Switch::Forward (port_t src_port, const uint8_t *frame, size_t size) {
     log_debug("Forwarding ethernet frame of size %zu from port %" PRIport ".\n", size, src_port);
 
-    if (size < sizeof(ether_header_t)) {
+    if (size < sizeof(struct ether_header)) {
         log_warn("Invalid ethernet frame from port %" PRIport ": size too small.\n", src_port);
         return true;
     }
 
     log_logic("Got packet on port %" PRIport ".\n", port);
-    const ether_header_t *hdr = (const ether_header_t *) frame;
-    const ether_addr_t *src = (const ether_addr_t *) hdr->ether_shost;
-    const ether_addr_t *dst = (const ether_addr_t *) hdr->ether_dhost;
+    const struct ether_header *hdr = (const struct ether_header *) frame;
+    const struct ether_addr *src = (const struct ether_addr *) hdr->ether_shost;
+    const struct ether_addr *dst = (const struct ether_addr *) hdr->ether_dhost;
     log_logic("SRC: %s\n", ether_ntoa(src));
     log_logic("DST: %s\n", ether_ntoa(dst));
 
@@ -238,7 +238,7 @@ void Switch::Broadcast (port_t src_port, net_t net, const uint8_t *frame, size_t
     }
 }
 
-bool Switch::IsBroadcast (const ether_addr_t &addr) {
+bool Switch::IsBroadcast (const struct ether_addr &addr) {
     const uint16_t *a = (const uint16_t *) &addr;
     return a[0] == 0xffff && a[1] == 0xffff && a[2] == 0xffff;
 }

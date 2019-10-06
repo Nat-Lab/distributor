@@ -3,6 +3,7 @@
 #include "types.h"
 #include <stdint.h>
 #include <net/ethernet.h>
+#include <netinet/ether.h>
 #include <unordered_map>
 #include <mutex>
 
@@ -12,15 +13,15 @@ namespace distributor {
 class FdbKey {
 public:
     FdbKey ();
-    FdbKey (const ether_addr_t &addr);
-    const ether_addr_t* Ptr() const;
-    const ether_addr_t& Ref() const;
+    FdbKey (const struct ether_addr &addr);
+    const struct ether_addr* Ptr() const;
+    const struct ether_addr& Ref() const;
     size_t Hash() const;
     bool operator== (const FdbKey &other) const;
 
 private:
     size_t _hash;
-    ether_addr_t _address;
+    struct ether_addr _address;
 };
 
 // fdb value
@@ -52,14 +53,14 @@ public:
 
     // Look up an address in fdb, return 0 if not found. (entry will be remove 
     // if aged, and 0 will be returned)
-    port_t Lookup (const ether_addr_t &addr);
+    port_t Lookup (const struct ether_addr &addr);
 
     // Insert a forwarding database entry for port, return true if new entry
     // created, return false if old entry updated.
-    bool Insert (port_t port, const ether_addr_t &addr);
+    bool Insert (port_t port, const struct ether_addr &addr);
 
     // Remove a forwarding database entry for port.
-    bool Delete (const ether_addr_t &addr);
+    bool Delete (const struct ether_addr &addr);
 
     // Remove all forwarding database entries for port, return number of entries
     // removed.

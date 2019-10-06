@@ -1,3 +1,5 @@
+#ifndef DIST_CLIENT_H
+#define DIST_CLIENT_H
 #include "types.h"
 #include <thread>
 #include <vector>
@@ -74,3 +76,5 @@ private:
 };
 
 }
+
+#endif // DIST_CLIENT_H

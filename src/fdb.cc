@@ -1,28 +1,29 @@
 #include "fdb.h"
 #include "vars.h"
 #include "log.h"
+#include <string.h>
 
 namespace distributor {
 
 FdbKey::FdbKey() {}
 
-FdbKey::FdbKey (const ether_addr_t &addr) {
-    memcpy(&_address, &addr, sizeof(ether_addr_t));
+FdbKey::FdbKey (const struct ether_addr &addr) {
+    memcpy(&_address, &addr, sizeof(struct ether_addr));
     _hash = 0;
-    ssize_t sz_diff = sizeof(size_t) - sizeof(ether_addr_t);
+    ssize_t sz_diff = sizeof(size_t) - sizeof(struct ether_addr);
     if (sz_diff > 0) {
-        memcpy(((uint8_t *) &_hash) + sz_diff, &addr, sizeof(ether_addr_t));
+        memcpy(((uint8_t *) &_hash) + sz_diff, &addr, sizeof(struct ether_addr));
     } else {
         memcpy(&_hash, ((uint8_t *) &addr) + sz_diff, sizeof(size_t));
     }
     log_logic("Hash(%s) = %zu\n", ether_ntoa(&addr), _hash);
 }
 
-const ether_addr_t* FdbKey::Ptr() const {
+const struct ether_addr* FdbKey::Ptr() const {
     return &_address;
 }
 
-const ether_addr_t& FdbKey::Ref() const {
+const struct ether_addr& FdbKey::Ref() const {
     return _address;
 }
 
@@ -31,7 +32,7 @@ size_t FdbKey::Hash() const {
 }
 
 bool FdbKey::operator== (const FdbKey &other) const {
-    return memcmp(&(other._address), &_address, sizeof(ether_addr_t)) == 0;
+    return memcmp(&(other._address), &_address, sizeof(struct ether_addr)) == 0;
 }
 
 size_t FdbKeyHasher::operator() (const FdbKey &key) const {
@@ -64,7 +65,7 @@ Fdb::Fdb(net_t network) {
     _network = network;
 }
 
-port_t Fdb::Lookup (const ether_addr_t &addr) {
+port_t Fdb::Lookup (const struct ether_addr &addr) {
     log_debug("Fdb%" PRInet ": Looking up: %s\n", _network, ether_ntoa(&addr));
     fdb_t::const_iterator it = _fdb.find(FdbKey(addr));
 
@@ -90,7 +91,7 @@ port_t Fdb::Lookup (const ether_addr_t &addr) {
     return port;
 }
 
-bool Fdb::Insert (port_t port, const ether_addr_t &addr) {
+bool Fdb::Insert (port_t port, const struct ether_addr &addr) {
     log_debug("Fdb%" PRInet ": Inserting: %s@%" PRIport "\n", _network, ether_ntoa(&addr), port);
 
     fdb_t::iterator it = _fdb.find(FdbKey(addr));
@@ -120,7 +121,7 @@ bool Fdb::Insert (port_t port, const ether_addr_t &addr) {
     return rslt.second;
 }
 
-bool Fdb::Delete (const ether_addr_t &addr) {
+bool Fdb::Delete (const struct ether_addr &addr) {
     log_debug("Fdb%" PRInet ": Deleting: %s\n", _network, ether_ntoa(&addr));
     fdb_t::const_iterator it = _fdb.find(FdbKey(addr));
     log_logic("Fdb%" PRInet ": Obtaining write lock...\n", _network);

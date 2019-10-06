@@ -1,6 +1,7 @@
 #include "udp-distributor.h"
 #include "log.h"
 #include "vars.h"
+#include <string.h>
 #include <fcntl.h>
 #include <unistd.h>
 #include <arpa/inet.h>
