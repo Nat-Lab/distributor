@@ -27,7 +27,7 @@ void DistributorClient::SetNetwork (net_t net) {
         hdr->magic = htons(DIST_CLIENT_MAGIC);
         hdr->msg_type = M_ASSOCIATE_REQUEST;
         uint8_t *msg_ptr = buffer + sizeof(dist_header_t);
-        *msg_ptr = htonl(net);
+        *((uint32_t *) msg_ptr) = htonl(net);
         ssize_t s_ret = sendto(_fd, hdr, sizeof(dist_header_t) + sizeof(net_t), 0, (const struct sockaddr *) &_server, sizeof(struct sockaddr_in));
         if (s_ret < 0) {
             log_error("sendto(): %s.\n", strerror(errno));
