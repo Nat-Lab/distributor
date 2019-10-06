@@ -14,8 +14,8 @@ public:
     const char* GetTapName() const;
 
 private:
-    void NicStart ();
-    void NicStop ();
+    bool NicStart ();
+    bool NicStop ();
     ssize_t NicRead (uint8_t *buffer, size_t buf_sz);
     ssize_t NicWrite (const uint8_t *buffer, size_t sz);
 

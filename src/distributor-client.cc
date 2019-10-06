@@ -54,11 +54,14 @@ void DistributorClient::Start () {
         return;
     }
 
+    if (!NicStart()) {
+        log_error("Failed to bring up NIC.\n");
+        return;
+    }
+
     _running = true;
     _state = S_IDLE;
     _last_recv = 0;
-
-    NicStart();
 
     _threads.push_back(std::thread(&DistributorClient::SocketWorker, this));
     _threads.push_back(std::thread(&DistributorClient::NicWorker, this));

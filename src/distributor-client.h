@@ -40,10 +40,10 @@ public:
 
 protected:
     // Spin up NIC
-    virtual void NicStart () = 0;
+    virtual bool NicStart () = 0;
 
     // Shutdown NIC
-    virtual void NicStop () = 0;
+    virtual bool NicStop () = 0;
 
     // Read from NIC.
     virtual ssize_t NicRead (uint8_t *buffer, size_t buf_sz) = 0;
