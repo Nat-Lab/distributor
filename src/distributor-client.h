@@ -38,6 +38,7 @@ public:
     // Join threads
     void Join ();
 
+protected:
     // Spin up NIC
     virtual void NicStart () = 0;
 
