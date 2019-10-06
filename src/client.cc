@@ -72,5 +72,8 @@ int main (int argc, char **argv) {
     ::client = &client;
     client.Start();
     client.Join();
+
+    free(dev);
+    free(server);
     return 0;
 } 
