@@ -5,9 +5,6 @@ namespace distributor {
 
 void Switch::Plug (net_t net, port_t port) {
     log_debug("Plugging port %" PRIport " to network %" PRInet "...\n", port, net);
-    log_logic("Obtaining write lock...\n");
-    std::lock_guard<std::mutex> lck (_maps_write_mtx);
-    log_logic("Obtained write lock.\n");
 
     // insert to port -> net mapping
     std::pair<portsmap_t::iterator, bool> rslt = _ports.insert(std::make_pair(port, net));
@@ -60,9 +57,6 @@ void Switch::Plug (net_t net, port_t port) {
 
 bool Switch::Unplug (port_t port) {
     log_debug("Unplugging port %" PRIport "...\n", port);
-    log_logic("Obtaining write lock...\n");
-    std::lock_guard<std::mutex> lck (_maps_write_mtx);
-    log_logic("Obtained write lock.\n");
 
     portsmap_t::const_iterator net = GetNetByPort(port);
     if (net == _ports.end()) {
@@ -152,9 +146,6 @@ bool Switch::Forward (port_t src_port, const uint8_t *frame, size_t size) {
 
 void Switch::FlushFdb(port_t port) {
     log_debug("Flusing FDB for port %" PRIport "...\n", port);
-    log_logic("Obtaining write lock...\n");
-    std::lock_guard<std::mutex> lck (_maps_write_mtx);
-    log_logic("Obtained write lock.\n");
     portsmap_t::const_iterator net_it = GetNetByPort(port);
     if (net_it == _ports.end()) {
         log_warn("Port %" PRIport " was not associated with any network.\n", port);
@@ -167,9 +158,6 @@ void Switch::FlushFdb(port_t port) {
 
 void Switch::Reset () {
     log_debug("Resetting switch...\n");
-    log_logic("Obtaining write lock...\n");
-    std::lock_guard<std::mutex> lck (_maps_write_mtx);
-    log_logic("Obtained write lock.\n");
     _ports.clear();
     _nets.clear();
     _fdbs.clear();
@@ -190,9 +178,6 @@ Switch::fdbsmap_t::iterator Switch::GetFdbByNet (net_t net) {
 
     if (it == _fdbs.end()) {
         log_info("FDB for network %" PRInet " does not exist, creating...\n", net);
-        log_logic("Obtaining write lock...\n");
-        std::lock_guard<std::mutex> lck (_maps_write_mtx);
-        log_logic("Obtained write lock.\n");
         
         std::pair<fdbsmap_t::iterator, bool> rslt = _fdbs.insert(std::make_pair(net, std::make_shared<Fdb>(net)));
 

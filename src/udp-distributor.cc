@@ -27,10 +27,9 @@ size_t InetSocketAddressHasher::operator() (const InetSocketAddress &key) const 
     return key.Hash();
 }
 
-UdpDistributor::UdpDistributor(uint32_t n_threads, in_addr_t local_addr, in_port_t local_port) {
+UdpDistributor::UdpDistributor(in_addr_t local_addr, in_port_t local_port) {
     _local_addr = local_addr;
     _local_port = local_port;
-    _n_threads = n_threads;
     _running = false;
     _next_port = 1;
 }
@@ -102,9 +101,6 @@ bool Client::IsAlive () {
 }
 
 ssize_t Client::Write (const uint8_t *buffer, size_t size) {
-    log_logic("Obtaining buffer lock...\n");
-    std::lock_guard<std::mutex> lck (_buf_mutex);
-    log_logic("Obtained buffer lock.\n");
     dist_header_t *hdr = (dist_header_t *) _send_buffer;
     hdr->msg_type = M_ETHERNET_FRAME;
     uint8_t *msg = _send_buffer + sizeof(dist_header_t);
@@ -125,9 +121,6 @@ ssize_t Client::Write (const uint8_t *buffer, size_t size) {
 }
 
 ssize_t Client::SendMsg (msg_type_t type) {
-    log_logic("Obtaining buffer lock...\n");
-    std::lock_guard<std::mutex> lck (_buf_mutex);
-    log_logic("Obtained buffer lock.\n");
     dist_header_t *hdr = (dist_header_t *) _send_buffer;
     hdr->msg_type = type;
     ssize_t s_ret = sendto(_fd, _send_buffer, sizeof(dist_header_t), 0, (const struct sockaddr *) &_address, sizeof(struct sockaddr_in));
@@ -178,11 +171,7 @@ void UdpDistributor::Start () {
 
     _running = true;
 
-    for (uint32_t i = 0; i < _n_threads; i++) {
-        log_debug("Starting worker %d...\n", i);
-        _threads.push_back(std::thread(&UdpDistributor::Worker, this, i));
-    }
-
+    _threads.push_back(std::thread(&UdpDistributor::Worker, this));
     std::thread scavenger_thread (&UdpDistributor::Scavenger, this);
     scavenger_thread.detach();
 
@@ -224,9 +213,6 @@ void UdpDistributor::Stop () {
     Switch::Reset();
 
     log_debug("Cleaning up associations...\n");
-    log_logic("Obtaining write lock...\n");
-    std::lock_guard<std::mutex> lck (_write_mtx);
-    log_logic("Obtained write lock.\n");
     _clients.clear();
     _infos.clear();
 
@@ -243,38 +229,38 @@ void UdpDistributor::Join () {
     }
 }
 
-void UdpDistributor::Worker (int id) {
-    log_debug("Worker%d: started.\n", id);
+void UdpDistributor::Worker () {
+    log_debug("started.\n");
     struct sockaddr_in client_addr;
     uint8_t buffer[DIST_WOROKER_READ_BUFSZ];
 
     while (_running) {
         static socklen_t client_addr_len = sizeof(struct sockaddr_in);
 
-        log_logic("Worker%d: waiting for incoming packet...\n", id);
+        log_logic("waiting for incoming packet...\n");
         ssize_t len = recvfrom(_fd, buffer, DIST_WOROKER_READ_BUFSZ, 0, (struct sockaddr *) &client_addr, &client_addr_len);
 
-        log_logic("Worker%d: Packet from %s:%d.\n", id, inet_ntoa(client_addr.sin_addr), ntohs(client_addr.sin_port));
+        log_logic("Packet from %s:%d.\n", inet_ntoa(client_addr.sin_addr), ntohs(client_addr.sin_port));
 
         if (len < 0) {
-            log_error("Worker%d: recvfrom(): %s.\n", id, strerror(errno));
+            log_error("recvfrom(): %s.\n", strerror(errno));
             continue;
         }
 
         if (len == 0) {
-            log_error("Worker%d: recvfrom() returned 0.\n", id);
+            log_error("recvfrom() returned 0.\n");
             continue;
         }
 
         if ((size_t) len < sizeof(dist_header_t)) {
-            log_warn("Worker%d: received packet too small.\n", id);
+            log_warn("received packet too small.\n");
             continue;
         }
 
         const dist_header_t *msg_hdr = (const dist_header_t *) buffer;
 
         if (ntohs(msg_hdr->magic) != DIST_MAGIC) {
-            log_warn("Worker%d: received invalid packet from %s:%d (Invalid magic).\n", id, inet_ntoa(client_addr.sin_addr), ntohs(client_addr.sin_port));
+            log_warn("received invalid packet from %s:%d (Invalid magic).\n", inet_ntoa(client_addr.sin_addr), ntohs(client_addr.sin_port));
             continue;
         }
 
@@ -283,41 +269,35 @@ void UdpDistributor::Worker (int id) {
         clientsmap_t::iterator cit = _clients.find(c);
         infomap_t::iterator iit = _infos.end();
         if (cit == _clients.end()) {
-            log_debug("Worker%d: Client info for %s:%d does not exist, creating...\n", id, inet_ntoa(client_addr.sin_addr), ntohs(client_addr.sin_port));
-            log_logic("Obtaining write lock...\n");
-            std::lock_guard<std::mutex> lck (_write_mtx);
-            log_logic("Obtained write lock.\n");
+            log_debug("Client info for %s:%d does not exist, creating...\n", inet_ntoa(client_addr.sin_addr), ntohs(client_addr.sin_port));
             port_t port = _next_port++;
             std::pair<clientsmap_t::iterator, bool> clients_find_ret = _clients.insert(std::make_pair(c, port));
 
             cit = clients_find_ret.first;
             if (!clients_find_ret.second) {
-                log_warn("Worker%d: Insert client -> port mapping returned element exist.\n", id);
+                log_warn("Insert client -> port mapping returned element exist.\n");
             }
 
             std::pair<infomap_t::iterator, bool> info_find_ret = _infos.insert(std::make_pair(port, std::make_shared<Client>(client_addr, _fd)));
 
             iit = info_find_ret.first;
             if (!info_find_ret.second) {
-                log_warn("Worker%d: Insert port -> info mapping returned element exist.\n", id);
+                log_warn("Insert port -> info mapping returned element exist.\n");
             }
             
             iit->second->Associate();
-            log_info("Worker%d: New client from %s:%d, assigned port: %" PRIport ".\n", id, inet_ntoa(client_addr.sin_addr), ntohs(client_addr.sin_port), port);
+            log_info("New client from %s:%d, assigned port: %" PRIport ".\n", inet_ntoa(client_addr.sin_addr), ntohs(client_addr.sin_port), port);
         }
 
         port_t port = cit->second;
         if (iit == _infos.end()) iit = _infos.find(port);
         if (iit == _infos.end()) {
-            log_warn("Worker%d: Client found in client -> port mapping but not port -> info mapping.\n", id);
-            log_logic("Obtaining write lock...\n");
-            std::lock_guard<std::mutex> lck (_write_mtx);
-            log_logic("Obtained write lock.\n");
+            log_warn("Client found in client -> port mapping but not port -> info mapping.\n");
             std::pair<infomap_t::iterator, bool> info_find_ret = _infos.insert(std::make_pair(port, std::make_shared<Client>(client_addr, _fd)));
 
             iit = info_find_ret.first;
             if (!info_find_ret.second) {
-                log_warn("Worker%d: Re-Insert port -> info mapping returned element exist.\n", id);
+                log_warn("Re-Insert port -> info mapping returned element exist.\n");
             }
         }
 
@@ -356,9 +336,6 @@ void UdpDistributor::Worker (int id) {
                 log_logic("Got M_DISCONNECT from client on port %" PRIport ".\n", port);
                 log_info("Got disconnect request from client on port %" PRIport ", unregister client.\n", port);
                 Unplug(port);
-                log_logic("Obtaining write lock...\n");
-                std::lock_guard<std::mutex> lck (_write_mtx);
-                log_logic("Obtained write lock.\n");
                 _clients.erase(cit);
                 _infos.erase(iit);
                 continue;
@@ -375,8 +352,8 @@ void UdpDistributor::Worker (int id) {
         // FIXME: what if iit/cit got deleted during message processing?
     }
 
-    if (!_running) log_debug("Worker%d: stopped.\n", id);
-    else log_warn("Worker%d: stopped unexpectedly.\n", id);
+    if (!_running) log_debug("stopped.\n");
+    else log_warn("stopped unexpectedly.\n");
 }
 
 void UdpDistributor::Scavenger () {

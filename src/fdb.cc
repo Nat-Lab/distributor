@@ -78,9 +78,6 @@ port_t Fdb::Lookup (const struct ether_addr &addr) {
     // aged?
     if ((*it).second.GetAge() > DIST_FDB_AGEING) {
         log_notice("Fdb%" PRInet ": Aged: %s\n", _network, ether_ntoa(&addr));
-        log_logic("Fdb%" PRInet ": Obtaining write lock...\n", _network);
-        std::lock_guard<std::mutex> lck (_fdb_write_mtx);
-        log_logic("Fdb%" PRInet ": Obtained write lock.\n", _network);
         _fdb.erase(it);
         return 0;
     }
@@ -104,9 +101,6 @@ bool Fdb::Insert (port_t port, const struct ether_addr &addr) {
         return false;
     }
 
-    log_logic("Fdb%" PRInet ": Obtaining write lock...\n", _network);
-    std::lock_guard<std::mutex> lck (_fdb_write_mtx);
-    log_logic("Fdb%" PRInet ": Obtained write lock.\n", _network);
     std::pair<fdb_t::iterator, bool> rslt = _fdb.insert(std::make_pair(FdbKey(addr), FdbValue(port)));
 
     // already exist, update last seen
@@ -124,9 +118,6 @@ bool Fdb::Insert (port_t port, const struct ether_addr &addr) {
 bool Fdb::Delete (const struct ether_addr &addr) {
     log_debug("Fdb%" PRInet ": Deleting: %s\n", _network, ether_ntoa(&addr));
     fdb_t::const_iterator it = _fdb.find(FdbKey(addr));
-    log_logic("Fdb%" PRInet ": Obtaining write lock...\n", _network);
-    std::lock_guard<std::mutex> lck (_fdb_write_mtx);
-    log_logic("Fdb%" PRInet ": Obtained write lock.\n", _network);
 
     // not found
     if (it == _fdb.end()) {
@@ -141,9 +132,6 @@ bool Fdb::Delete (const struct ether_addr &addr) {
 
 int Fdb::Discard (port_t port) {
     log_debug("Fdb%" PRInet ": Discarding port %" PRIport "...\n", _network, port);
-    log_logic("Fdb%" PRInet ": Obtaining write lock...\n", _network);
-    std::lock_guard<std::mutex> lck (_fdb_write_mtx);
-    log_logic("Fdb%" PRInet ": Obtained write lock.\n", _network);
 
     fdb_t::const_iterator it = _fdb.begin();
 

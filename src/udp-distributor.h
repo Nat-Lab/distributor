@@ -80,7 +80,7 @@ private:
 
 class UdpDistributor : private Switch {
 public:
-    UdpDistributor(uint32_t threads, in_addr_t local_addr, in_port_t local_port);
+    UdpDistributor(in_addr_t local_addr, in_port_t local_port);
 
     // Start the server
     void Start ();
@@ -88,7 +88,7 @@ public:
     // Stop the server
     void Stop ();
 
-    // Join worker threads
+    // Join threads
     void Join ();
 
     typedef std::unordered_map<InetSocketAddress, port_t, InetSocketAddressHasher> clientsmap_t;
@@ -96,7 +96,7 @@ public:
 
 private:
     // Worker thread
-    void Worker (int id);
+    void Worker ();
 
     // Scavenger thread (send keepalive to unresponsive clients and disconnect 
     // them if necessary)
@@ -107,7 +107,6 @@ private:
 
     in_port_t _local_port;
     in_addr_t _local_addr;
-    uint32_t _n_threads;
     port_t _next_port;
     int _fd;
     clientsmap_t _clients;
