@@ -140,7 +140,7 @@ bool Switch::Forward (port_t src_port, const uint8_t *frame, size_t size) {
             return true;
         }
 
-        log_notice("DST address %s was not in FDB, flooding all ports on network %" PRInet ".\n", ether_ntoa(dst), net);
+        log_debug("DST address %s was not in FDB, flooding all ports on network %" PRInet ".\n", ether_ntoa(dst), net);
         Broadcast(src_port, net, frame, size);
         return true;
     }

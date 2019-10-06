@@ -71,7 +71,7 @@ port_t Fdb::Lookup (const struct ether_addr &addr) {
 
     // not found?
     if (it == _fdb.end()) {
-        log_notice("Fdb%" PRInet ": Not found: %s\n", _network, ether_ntoa(&addr));
+        log_debug("Fdb%" PRInet ": Not found: %s\n", _network, ether_ntoa(&addr));
         return 0;
     }
 
@@ -130,7 +130,7 @@ bool Fdb::Delete (const struct ether_addr &addr) {
 
     // not found
     if (it == _fdb.end()) {
-        log_notice("Fdb%" PRInet ": Not found: %s\n", _network, ether_ntoa(&addr));
+        log_debug("Fdb%" PRInet ": Not found: %s\n", _network, ether_ntoa(&addr));
         return false;
     }
 
