@@ -40,7 +40,7 @@ Client::Client (const struct sockaddr_in &address, int fd) {
     _last_seen = _last_sent = time(NULL);
     _fd = fd;
     dist_header_t *hdr = (dist_header_t *) _send_buffer;
-    hdr->magic = DIST_MAGIC;
+    hdr->magic = htons(DIST_MAGIC);
 }
 
 const struct sockaddr_in& Client::AddrRef () const {

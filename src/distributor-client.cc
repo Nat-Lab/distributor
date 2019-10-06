@@ -24,7 +24,7 @@ void DistributorClient::SetNetwork (net_t net) {
     if (_running && _state >= S_CONNECTED) {
         log_debug("Client is already connect with server, send association request.\n");
         dist_header_t *hdr = (dist_header_t *) buffer;
-        hdr->magic = DIST_CLIENT_MAGIC;
+        hdr->magic = htons(DIST_CLIENT_MAGIC);
         hdr->msg_type = M_ASSOCIATE_REQUEST;
         uint8_t *msg_ptr = buffer + sizeof(dist_header_t);
         *msg_ptr = htonl(net);
@@ -96,14 +96,14 @@ ssize_t DistributorClient::SendMsg (msg_type_t type) {
         return 0;
     }
     static dist_header_t msg;
-    msg.magic = DIST_CLIENT_MAGIC;
+    msg.magic = htons(DIST_CLIENT_MAGIC);
     msg.msg_type = type;
     ssize_t s_ret = sendto(_fd, &msg, sizeof(dist_header_t), 0, (const struct sockaddr *) &_server, sizeof(struct sockaddr_in));
     if (s_ret < 0) {
         log_error("sendto(): %s.\n", strerror(errno));
         return s_ret;
     }
-    if ((size_t) s_ret != sizeof(dist_header_t) + sizeof(net_t)) {
+    if ((size_t) s_ret != sizeof(dist_header_t)) {
         log_error("sendto() returned %zu.\n", s_ret);
         return s_ret;
     }
@@ -257,7 +257,7 @@ void DistributorClient::NicWorker () {
     uint8_t buffer[DIST_CLIENT_BUF_SZ];
     dist_header_t *msg_hdr = (dist_header_t *) buffer;
     uint8_t *msg_ptr = buffer + sizeof(dist_header_t);
-    msg_hdr->magic = DIST_CLIENT_MAGIC;
+    msg_hdr->magic = htons(DIST_CLIENT_MAGIC);
     msg_hdr->msg_type = M_ETHERNET_FRAME;
     size_t max_frame_len = DIST_CLIENT_BUF_SZ - sizeof(dist_header_t);
 
@@ -299,6 +299,7 @@ void DistributorClient::Pinger () {
         if (_state == S_IDLE) {
             log_debug("Client running but idle, send init keepalive to server.\n");
             SendMsg(M_KEEPALIVE_REQUEST);
+            _state = S_CONNECT;
         } else {
             int64_t lastsent_diff = time(NULL) - _last_sent;
             int64_t lastrecv_diff = time(NULL) - _last_recv;
