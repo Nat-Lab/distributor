@@ -8,6 +8,14 @@ FdbKey::FdbKey() {}
 
 FdbKey::FdbKey (const ether_addr_t &addr) {
     memcpy(&_address, &addr, sizeof(ether_addr_t));
+    _hash = 0;
+    ssize_t sz_diff = sizeof(size_t) - sizeof(ether_addr_t);
+    if (sz_diff > 0) {
+        memcpy(((uint8_t *) &_hash) + sz_diff, &addr, sizeof(ether_addr_t));
+    } else {
+        memcpy(&_hash, ((uint8_t *) &addr) + sz_diff, sizeof(size_t));
+    }
+    log_logic("Hash(%s) = %zu\n", ether_ntoa(&addr), _hash);
 }
 
 const ether_addr_t* FdbKey::Ptr() const {
@@ -18,8 +26,16 @@ const ether_addr_t& FdbKey::Ref() const {
     return _address;
 }
 
+size_t FdbKey::Hash() const {
+    return _hash;
+}
+
 bool FdbKey::operator== (const FdbKey &other) const {
     return memcmp(&(other._address), &_address, sizeof(ether_addr_t)) == 0;
+}
+
+size_t FdbKeyHasher::operator() (const FdbKey &key) const {
+    return key.Hash();
 }
 
 FdbValue::FdbValue (port_t port) : _port (port) {
@@ -33,11 +49,15 @@ void FdbValue::Refresh () {
 }
 
 time_t FdbValue::GetAge () const {
-    return _last_seen - time (NULL);
+    return time (NULL) - _last_seen;
 }
 
 port_t FdbValue::GetPort () const {
     return _port;
+}
+
+void FdbValue::SetPort (port_t port) {
+    _port = port;
 }
 
 Fdb::Fdb(net_t network) {
@@ -80,6 +100,7 @@ bool Fdb::Insert (port_t port, const ether_addr_t &addr) {
     // already exist, update last seen
     if (!rslt.second) {
         (*(rslt.first)).second.Refresh(); 
+        (*(rslt.first)).second.SetPort(port);
         log_debug("Fdb%" PRInet ": Refreshed: %s@%" PRIport "\n", _network, ether_ntoa(&addr), port);
     } else {
         log_debug("Fdb%" PRInet ": Inserted: %s@%" PRIport "\n", _network, ether_ntoa(&addr), port);
@@ -119,8 +140,8 @@ int Fdb::Discard (port_t port) {
     while (it != _fdb.end()) {
         if ((*it).second.GetPort() == port) {
             removed++;
-            _fdb.erase(it);
-            log_debug("Fdb%" PRInet ": Removed: %s@%" PRIport "\n", _network, ether_ntoa((*it).first.Ptr()), port);
+            log_debug("Fdb%" PRInet ": Remove: %s@%" PRIport "\n", _network, ether_ntoa((*it).first.Ptr()), port);
+            it = _fdb.erase(it);
         } else it++;
     }
 

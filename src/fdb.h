@@ -18,11 +18,12 @@ public:
     FdbKey (const ether_addr_t &addr);
     const ether_addr_t* Ptr() const;
     const ether_addr_t& Ref() const;
+    size_t Hash() const;
     bool operator== (const FdbKey &other) const;
 
 private:
+    size_t _hash;
     ether_addr_t _address;
-    friend FdbKeyHasher;
 };
 
 // fdb value
@@ -32,6 +33,7 @@ public:
     void Refresh ();
     time_t GetAge () const;
     port_t GetPort () const;
+    void SetPort (port_t port);
 
 private:
     port_t _port;
@@ -40,9 +42,7 @@ private:
 
 // hashing function for fdb key
 struct FdbKeyHasher {
-    std::size_t operator() (const FdbKey &key) const {
-        return *((uint32_t *) &(key._address) + (sizeof(ether_addr_t) - sizeof(uint32_t)));
-    }
+    std::size_t operator() (const FdbKey &key) const;
 };
 
 // fdb
