@@ -12,7 +12,13 @@
 #ifndef DIST_SILENCE
 #define log(log_level, fmt, ...) fprintf(stderr, "[%ld " log_level "] %s: " fmt, (long) time(NULL), __FUNCTION__, __VA_ARGS__)
 #else
-#define log(...)
+#define log(log_level, fmt, ...)
 #endif // DIST_SILENCE
+
+#ifdef DIST_LOGIC_DEBUG
+#define log_logic(fmt, ...) log("LOGIC", fmt, __VA_ARGS__)
+#else
+#define log_logic(fmt, ...)
+#endif // DIST_LOGIC_DEBUG
 
 #endif // DIST_LOG_H
