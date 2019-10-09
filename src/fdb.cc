@@ -70,13 +70,13 @@ port_t Fdb::Lookup (const ether_addr_t &addr) {
 
     // not found?
     if (it == _fdb.end()) {
-        log_info("Fdb%" PRInet ": Not found: %s\n", _network, ether_ntoa(&addr));
+        log_notice("Fdb%" PRInet ": Not found: %s\n", _network, ether_ntoa(&addr));
         return 0;
     }
 
     // aged?
     if ((*it).second.GetAge() > DIST_FDB_AGEING) {
-        log_info("Fdb%" PRInet ": Aged: %s\n", _network, ether_ntoa(&addr));
+        log_notice("Fdb%" PRInet ": Aged: %s\n", _network, ether_ntoa(&addr));
         log_logic("Fdb%" PRInet ": Obtaining write lock...\n", _network);
         std::lock_guard<std::mutex> lck (_fdb_write_mtx);
         log_logic("Fdb%" PRInet ": Obtained write lock.\n", _network);
@@ -101,9 +101,9 @@ bool Fdb::Insert (port_t port, const ether_addr_t &addr) {
     if (!rslt.second) {
         (*(rslt.first)).second.Refresh(); 
         (*(rslt.first)).second.SetPort(port);
-        log_debug("Fdb%" PRInet ": Refreshed: %s@%" PRIport "\n", _network, ether_ntoa(&addr), port);
+        log_info("Fdb%" PRInet ": Refreshed: %s@%" PRIport "\n", _network, ether_ntoa(&addr), port);
     } else {
-        log_debug("Fdb%" PRInet ": Inserted: %s@%" PRIport "\n", _network, ether_ntoa(&addr), port);
+        log_info("Fdb%" PRInet ": Inserted: %s@%" PRIport "\n", _network, ether_ntoa(&addr), port);
     }
     
     return rslt.second;
@@ -118,11 +118,11 @@ bool Fdb::Delete (const ether_addr_t &addr) {
 
     // not found
     if (it == _fdb.end()) {
-        log_info("Fdb%" PRInet ": Not found: %s\n", _network, ether_ntoa(&addr));
+        log_notice("Fdb%" PRInet ": Not found: %s\n", _network, ether_ntoa(&addr));
         return false;
     }
 
-    log_debug("Fdb%" PRInet ": Deleted: %s\n", _network, ether_ntoa(&addr));
+    log_info("Fdb%" PRInet ": Deleted: %s\n", _network, ether_ntoa(&addr));
     _fdb.erase(it);
     return true;
 }
@@ -145,7 +145,7 @@ int Fdb::Discard (port_t port) {
         } else it++;
     }
 
-    log_debug("Fdb%" PRInet ": Discared port %" PRIport ". %d ports removed.\n", _network, port, removed);
+    log_info("Fdb%" PRInet ": Discared port %" PRIport ". %d ports removed.\n", _network, port, removed);
 
     return removed;
 }
