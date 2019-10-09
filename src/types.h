@@ -1,6 +1,11 @@
 #ifndef DIST_TYPES_H
 #define DIST_TYPES_H
+#define __STDC_FORMAT_MACROS
+#include <inttypes.h>
 #include <stdint.h>
+
+#define PRIport PRIu64
+#define PRInet PRIu32
 
 namespace distributor {
 
