@@ -137,12 +137,12 @@ void Switch::Forward (port_t src_port, const uint8_t *frame, size_t size) {
         }
 
         log_notice("DST address %s was not in FDB, flooding all ports on network %" PRInet ".\n", ether_ntoa(dst), net);
-        Broadcast(net, frame, size);
+        Broadcast(src_port, net, frame, size);
         return;
     }
 
     log_logic("DST address is broadcast, flooding all ports on network %" PRInet ".\n", net);
-    Broadcast(net, frame, size);
+    Broadcast(src_port, net, frame, size);
 }
 
 void Switch::FlushFdb(port_t port) {
@@ -192,7 +192,7 @@ Switch::fdbsmap_t::iterator Switch::GetFdbByNet (net_t net) {
 }
 
 void Switch::FlushFdbPriv (net_t net, port_t port) {
-    log_debug("Flushing FDB for network %" PRInet " port %" PRIport "...\n", port);
+    log_debug("Flushing FDB for network %" PRInet " port %" PRIport "...\n", net, port);
     fdbsmap_t::iterator it = _fdbs.find(net);
 
     if (it == _fdbs.end()) {
@@ -201,6 +201,30 @@ void Switch::FlushFdbPriv (net_t net, port_t port) {
     }
 
     it->second->Discard(port);
+}
+
+void Switch::Broadcast (port_t src_port, net_t net, const uint8_t *frame, size_t size) {
+    log_debug("Broadcast to network %" PRInet ", skipping source port %" PRIport "...\n", net, src_port);
+
+    ports_iter_t its = GetPortsByNet(net);
+    netsmap_t::const_iterator it = its.first;
+
+    if (it == _nets.end()) {
+        log_error("No ports are connected to network %" PRInet ", can't broadcast.\n", net);
+        return;
+    }
+
+    for (; it != its.second; it++) {
+        port_t dst_port = it->second;
+        if (dst_port == src_port) continue;
+        log_logic("Forwarding frame to port %" PRIport "...\n", dst_port);
+        Send(dst_port, frame, size);
+    }
+}
+
+bool Switch::IsBroadcast (const ether_addr_t &addr) {
+    const uint16_t *a = (const uint16_t *) &addr;
+    return a[0] == 0xffff && a[1] == 0xffff && a[2] == 0xffff;
 }
 
 }

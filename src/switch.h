@@ -47,7 +47,7 @@ private:
     void FlushFdbPriv (net_t net, port_t port);
 
     // Relay an ethernet frame to every ports on a network.
-    void Broadcast (net_t net, const uint8_t *frame, size_t size);
+    void Broadcast (port_t src_port, net_t net, const uint8_t *frame, size_t size);
 
     // Check if an ethernet address is broadcast.
     static bool IsBroadcast (const ether_addr_t &addr);
