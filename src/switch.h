@@ -7,6 +7,7 @@
 #include <unordered_map>
 #include <vector>
 #include <mutex>
+#include <memory>
 
 namespace distributor {
 
@@ -30,17 +31,18 @@ protected:
 
     typedef std::map<port_t, net_t> portsmap_t;
     typedef std::unordered_multimap<net_t, port_t> netsmap_t;
-    typedef std::map<net_t, Fdb> fdbsmap_t;
+    typedef std::map<net_t, std::shared_ptr<Fdb>> fdbsmap_t;
+    typedef std::pair<netsmap_t::const_iterator, netsmap_t::const_iterator> ports_iter_t;
 
 private:
     // don't be confused by portsmap_t and netsmap_t. The key type in portsmap_t
     // is port_t, but value type is net_t, thus GetNetsByPort return portsmap_t.
     portsmap_t::const_iterator GetNetByPort (port_t port) const;
-    netsmap_t::const_iterator GetPortsByNet (net_t net) const;
+    ports_iter_t GetPortsByNet (net_t net) const;
 
     // Get FDB by net. If FDB does not exist for that net, a new one will be
     // created.
-    fdbsmap_t::iterator GetFdbByNet (net_t net) const;
+    fdbsmap_t::iterator GetFdbByNet (net_t net);
 
     // Flush FDB, private version. No write mutex.
     void FlushFdbPriv (net_t net, port_t port);

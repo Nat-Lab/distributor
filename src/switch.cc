@@ -39,9 +39,10 @@ void Switch::Plug (net_t net, port_t port) {
     rslt.first->second = net;
 
     // update ports map
-    netsmap_t::const_iterator it = GetPortsByNet(oldnet);
+    ports_iter_t its = GetPortsByNet(oldnet);
+    netsmap_t::const_iterator it = its.first;
     bool found = false;
-    while (it != _nets.end()) {
+    while (it != its.second) {
         if (it->second == port) {
             found = true;
             log_logic("Removed port %" PRIport " from old network %" PRInet ".\n", port, net);
@@ -75,9 +76,10 @@ bool Switch::Unplug (port_t port) {
     _ports.erase(net);
     log_logic("Removed port %" PRIport " from port -> net mapping.\n", port);
 
-    netsmap_t::const_iterator it = GetPortsByNet(_net);
+    ports_iter_t its = GetPortsByNet(_net);
+    netsmap_t::const_iterator it = its.first;
     bool found = false;
-    while (it != _nets.end()) {
+    while (it != its.second) {
         if (it->second == port) {
             found = true;
             log_logic("Removed port %" PRIport " from network %" PRInet ".\n", port, net);
@@ -117,7 +119,7 @@ void Switch::Forward (port_t src_port, const uint8_t *frame, size_t size) {
     net_t net = net_it->second;
     fdbsmap_t::iterator fdb_it = GetFdbByNet(net);
 
-    Fdb &fdb = fdb_it->second;
+    Fdb &fdb = *(fdb_it->second);
 
     if (!IsBroadcast(*src)) {
         log_logic("SRC address %s was not broadcast, inserting into FDB.\n", ether_ntoa(src));
@@ -154,6 +156,64 @@ void Switch::Forward (port_t src_port, const uint8_t *frame, size_t size) {
 
     log_logic("DST address is broadcast, flooding all ports on network %" PRInet ".\n", net);
     Broadcast(net, frame, size);
+}
+
+void Switch::FlushFdb(port_t port) {
+    log_debug("Flusing FDB for port %" PRIport "...\n", port);
+    log_logic("Obtaining write lock...\n");
+    std::lock_guard<std::mutex> lck (_maps_write_mtx);
+    log_logic("Obtained write lock.\n");
+    portsmap_t::const_iterator net_it = GetNetByPort(port);
+    if (net_it == _ports.end()) {
+        log_warn("Port %" PRIport " was not associated with any network.\n", port);
+        return;
+    }
+
+    net_t net = net_it->second;
+    FlushFdbPriv(net, port);
+}
+
+Switch::portsmap_t::const_iterator Switch::GetNetByPort (port_t port) const {
+    return _ports.find(port);
+}
+
+Switch::ports_iter_t Switch::GetPortsByNet (net_t net) const {
+    return _nets.equal_range(net);
+}
+
+Switch::fdbsmap_t::iterator Switch::GetFdbByNet (net_t net) {
+    log_debug("Getting FDB for network %" PRInet "...\n", net);
+    fdbsmap_t::iterator it = _fdbs.find(net);
+
+    if (it == _fdbs.end()) {
+        log_info("FDB for network %" PRInet " does not exist, creating...\n"), net;
+        log_logic("Obtaining write lock...\n");
+        std::lock_guard<std::mutex> lck (_maps_write_mtx);
+        log_logic("Obtained write lock.\n");
+        
+        std::pair<fdbsmap_t::iterator, bool> rslt = _fdbs.insert(std::make_pair(net, std::make_shared<Fdb>(net)));
+
+        if (!rslt.second) {
+            log_error("Error inserting new FDB for network %" PRInet " .\n", net);
+        }
+
+        return rslt.first;
+    }
+
+    log_logic("FDB exists. Returning existing FDB...\n");
+    return it;
+}
+
+void Switch::FlushFdbPriv (net_t net, port_t port) {
+    log_debug("Flushing FDB for network %" PRInet " port %" PRIport "...\n", port);
+    fdbsmap_t::iterator it = _fdbs.find(net);
+
+    if (it == _fdbs.end()) {
+        log_debug("No FDB exist for net %" PRInet ". Skipping Flish.\n", net);
+        return;
+    }
+
+    it->second->Discard(port);
 }
 
 }
