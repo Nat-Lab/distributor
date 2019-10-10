@@ -12,7 +12,24 @@
 #include <map>
 #include <unordered_map>
 
+#define DIST_MAGIC 0x5EED
+
 namespace distributor {
+
+struct dist_header {
+    uint16_t magic;
+    uint8_t msg_type;
+} __attribute__ ((__packed__));
+
+typedef dist_header dist_header_t;
+
+enum msg_types {
+    ETHERNET_FRAME = 0,
+    ASSOCIATE = 1, 
+    DISSOCIATE = 2, 
+    KEEPALIVE_REQUEST = 3, 
+    KEEPALIVE_RESPOND = 4
+};
 
 class InetSocketAddress {
 public:
@@ -38,7 +55,7 @@ class ClientInfo {
 
 class UdpDistributor : private Switch {
 public:
-    UdpDistributor(in_addr_t local_addr, in_port_t local_port);
+    UdpDistributor(uint32_t threads, in_addr_t local_addr, in_port_t local_port);
 
     // Start the server
     void Start ();
@@ -68,6 +85,9 @@ private:
     // Receive frame
     ssize_t Recv (port_t *src_client, uint8_t *buffer, size_t buf_size);
 
+    in_port_t _local_port;
+    in_addr_t _local_addr;
+    uint32_t _n_threads;
     port_t _next_port;
     int _fd;
     clientsmap_t _clients;
