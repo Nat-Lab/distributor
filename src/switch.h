@@ -38,13 +38,23 @@ private:
     portsmap_t::const_iterator GetNetByPort (port_t port) const;
     netsmap_t::const_iterator GetPortsByNet (net_t net) const;
 
+    // Get FDB by net. If FDB does not exist for that net, a new one will be
+    // created.
+    fdbsmap_t::iterator GetFdbByNet (net_t net) const;
+
     // Flush FDB, private version. No write mutex.
     void FlushFdbPriv (net_t net, port_t port);
+
+    // Relay an ethernet frame to every ports on a network.
+    void Broadcast (net_t net, const uint8_t *frame, size_t size);
+
+    // Check if an ethernet address is broadcast.
+    static bool IsBroadcast (const ether_addr_t &addr);
 
     // port to network mapping
     portsmap_t _ports;
 
-    // network to ports mapping
+    // network to ports mapping (for broadcasting)
     netsmap_t _nets;
 
     // network to fdb mapping
