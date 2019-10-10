@@ -25,9 +25,8 @@ protected:
     // Flush FDB entries for a port.
     void FlushFdb (port_t port);
 
-    // Send an ethernet frame to port. Should be implement by distributor. 
-    // Return -1 on error, return bytes written on success.
-    virtual ssize_t Send (port_t dst, const uint8_t *frame, size_t size) = 0;
+    // Send an ethernet frame to port. Need to be implement by distributor. 
+    virtual void Send (port_t dst, const uint8_t *frame, size_t size) = 0;
 
     typedef std::map<port_t, net_t> portsmap_t;
     typedef std::unordered_multimap<net_t, port_t> netsmap_t;

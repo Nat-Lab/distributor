@@ -131,21 +131,8 @@ void Switch::Forward (port_t src_port, const uint8_t *frame, size_t size) {
         port_t dst_port = fdb.Lookup(*dst);
 
         if (dst_port != 0) {
-            log_logic("DST address is on port %" PRIport ".\n", dst_port);
-
-            ssize_t send_ret = Send(dst_port, frame, size);
-
-            if (send_ret < 0) {
-                log_error("Error relaying ethernet frame to port %" PRIport ": %s.\n", dst_port, strerror(errno));
-                return;
-            }
-
-            if ((size_t) send_ret != size) {
-                log_error("Send() on port %" PRIport " returned value (%zu) != size (%zu).\n", dst_port, (size_t) send_ret, size);
-                return;
-            }
-
-            log_logic("Frame forwarded to port %" PRIport ".\n", dst_port);
+            log_logic("Forwarding frame to port %" PRIport ".\n", dst_port);
+            Send(dst_port, frame, size);
             return;
         }
 
