@@ -8,9 +8,6 @@
 
 namespace distributor {
 
-// forward-declaration for fdb key haser
-struct FdbKeyHasher;
-
 // key type for unordered_map to map ethernet address to fdb entries.
 class FdbKey {
 public:
@@ -41,8 +38,9 @@ private:
 };
 
 // hashing function for fdb key
-struct FdbKeyHasher {
-    std::size_t operator() (const FdbKey &key) const;
+class FdbKeyHasher {
+public:
+    size_t operator() (const FdbKey &key) const;
 };
 
 // fdb

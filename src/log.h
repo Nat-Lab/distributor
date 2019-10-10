@@ -1,7 +1,6 @@
 #ifndef DIST_LOG_H
 #define DIST_LOG_H
 #include <stdio.h>
-#include <time.h>
 
 #define log_info(fmt, ...) log("INFO ", fmt, ## __VA_ARGS__)
 #define log_notice(fmt, ...) log("NOTE ", fmt, ## __VA_ARGS__)
@@ -10,7 +9,7 @@
 #define log_fatal(fmt, ...) log("FATAL", fmt, ## __VA_ARGS__)
 
 #ifndef DIST_SILENCE
-#define log(log_level, fmt, ...) fprintf(stderr, "[%ld " log_level "] %s: " fmt, (long) time(NULL), __PRETTY_FUNCTION__, ## __VA_ARGS__)
+#define log(log_level, fmt, ...) fprintf(stderr, "[" log_level "] %s: " fmt, __PRETTY_FUNCTION__, ## __VA_ARGS__)
 #else
 #define log(log_level, fmt, ...)
 #endif // DIST_SILENCE
