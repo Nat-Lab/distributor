@@ -1,6 +1,7 @@
 #ifndef DIST_UDP_DIST_H
 #define DIST_UDP_DIST_H
 #include "switch.h"
+#include "vars.h"
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <stdint.h>
@@ -35,7 +36,7 @@ enum msg_types {
 class InetSocketAddress {
 public:
     InetSocketAddress ();
-    InetSocketAddress (const struct sockaddr_in *addr);
+    InetSocketAddress (const struct sockaddr_in &addr);
     bool operator== (const InetSocketAddress &other) const;
     size_t Hash() const;
 
@@ -48,9 +49,37 @@ public:
     size_t operator() (const FdbKey &key) const;
 };
 
-struct ClientInfo {
+class Client {
+public:
+    Client (struct sockaddr_in &address);
+    const struct sockaddr_in& AddrRef () const;
+    const struct sockaddr_in* AddrPtr () const;
+
+    // send DISCONNECT to client
+    ssize_t Disconnect ();
+
+    // send KEEPALIVE_REQUEST to client
+    ssize_t Keepalive ();
+
+    // send KEEPALIVE_RESPOND to client
+    ssize_t AckKeepalive ();
+
+    // send NEED_ASSOCIATION to client
+    ssize_t Associate ();
+
+    // send ASSOCIATE_RESPOND to client
+    ssize_t AckAssociate ();
+
+    // update last_seen value.
+    void Saw ();
+
+    // write an ethrnet frame to client
+    ssize_t Write(const uint8_t *buffer, size_t size);
+
+private:
     struct sockaddr_in address;
     time_t last_seen;
+    uint8_t send_buffer[DIST_CLIENT_SEND_BUFSZ];
 };
 
 class UdpDistributor : private Switch {
@@ -67,26 +96,14 @@ public:
     void Join ();
 
     typedef std::unordered_map<InetSocketAddress, port_t, InetSocketAddressHasher> clientsmap_t;
-    typedef std::unordered_map<port_t, std::shared_ptr<ClientInfo>> infomap_t;
+    typedef std::unordered_map<port_t, std::shared_ptr<Client>> infomap_t;
 
 private:
     // Worker thread
-    void Worker ();
-
-    // Register/Update a client
-    void Register (const sockaddr_in &addr, net_t net);
-
-    // Unregister a client
-    void Unregister (const sockaddr_in &addr);
+    void Worker (int id);
 
     // inherited
     void Send (port_t client, const uint8_t *buffer, size_t size);
-
-    // Send frame to a client
-    ssize_t SendTo (port_t client, const uint8_t *buffer, size_t size);
-
-    // Receive frame
-    ssize_t Recv (port_t *src_client, uint8_t *buffer, size_t buf_size);
 
     in_port_t _local_port;
     in_addr_t _local_addr;
