@@ -95,6 +95,10 @@ bool Switch::Unplug (port_t port) {
     return true;
 }
 
+bool Switch::Plugged (port_t port) const {
+    return _ports.find(port) != _ports.end();
+}
+
 void Switch::Forward (port_t src_port, const uint8_t *frame, size_t size) {
     log_debug("Forwarding ethernet frame of size %zu from port %" PRIport ".\n", size, src_port);
 

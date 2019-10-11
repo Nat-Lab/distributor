@@ -3,7 +3,6 @@
 #include "types.h"
 #include "fdb.h"
 #include <stdint.h>
-#include <map>
 #include <unordered_map>
 #include <vector>
 #include <mutex>
@@ -19,6 +18,9 @@ protected:
     // Unplug a port from the network. Return true if removed, false otherwise.
     bool Unplug (port_t port);
 
+    // Check if a port is plugged into switch.
+    bool Plugged (port_t port) const;
+
     // Foward an ethernet frame.
     void Forward (port_t src_port, const uint8_t *frame, size_t size);
 
@@ -31,9 +33,9 @@ protected:
     // Send an ethernet frame to port. Need to be implement by distributor. 
     virtual void Send (port_t dst, const uint8_t *frame, size_t size) = 0;
 
-    typedef std::map<port_t, net_t> portsmap_t;
+    typedef std::unordered_map<port_t, net_t> portsmap_t;
     typedef std::unordered_multimap<net_t, port_t> netsmap_t;
-    typedef std::map<net_t, std::shared_ptr<Fdb>> fdbsmap_t;
+    typedef std::unordered_map<net_t, std::shared_ptr<Fdb>> fdbsmap_t;
     typedef std::pair<netsmap_t::const_iterator, netsmap_t::const_iterator> ports_iter_t;
 
 private:
