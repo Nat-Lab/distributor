@@ -51,7 +51,7 @@ void UdpDistributor::Start () {
     }
 
     for (int i = 0; i < _n_threads; i++) {
-        log_debug("Starting worker %d\n", i);
+        log_debug("Starting worker %d...\n", i);
         _threads.push_back(std::thread(&UdpDistributor::Worker, this, i));
     }
 
@@ -116,7 +116,7 @@ void UdpDistributor::Worker (int id) {
     struct sockaddr_in client_addr;
     uint8_t buffer[DIST_WOROKER_READ_BUFSZ];
 
-    while (true) {
+    while (_running) {
         socklen_t client_addr_len = sizeof(struct sockaddr_in);
 
         log_logic("Worker%d: waiting for incoming packet...\n", id);
@@ -126,12 +126,12 @@ void UdpDistributor::Worker (int id) {
 
         if (len < 0) {
             log_error("Worker%d: recvfrom(): %s.\n", id, strerror(errno));
-            return;
+            break;
         }
 
         if (len == 0) {
             log_error("Worker%d: recvfrom() returned 0.\n", id);
-            return;
+            break;
         }
 
         if ((size_t) len < sizeof(dist_header_t)) {
@@ -241,6 +241,8 @@ void UdpDistributor::Worker (int id) {
         // FIXME: what if iit/cit got deleted during message processing?
     }
 
+    if (!_running) log_info("Worker%d: stopped.\n", id);
+    else log_warn("Worker%d: stopped unexpectedly.\n", id);
 }
 
 }
