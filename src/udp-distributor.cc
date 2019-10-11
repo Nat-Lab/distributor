@@ -245,4 +245,20 @@ void UdpDistributor::Worker (int id) {
     else log_warn("Worker%d: stopped unexpectedly.\n", id);
 }
 
+void UdpDistributor::Send (port_t client, const uint8_t *buffer, size_t size) {
+    if (!_running) {
+        log_error("Send called but Distributor was not running.\n");
+        return;
+    }
+
+    infomap_t::const_iterator iit = _infos.find(client);
+
+    if (iit == _infos.end()) {
+        log_error("Send called on unknow port %" PRIport ".\n", client);
+        return;
+    }
+
+    iit->second->Write(buffer, size);
+}
+
 }
