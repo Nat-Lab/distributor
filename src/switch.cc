@@ -160,6 +160,17 @@ void Switch::FlushFdb(port_t port) {
     FlushFdbPriv(net, port);
 }
 
+void Switch::Reset () {
+    log_debug("Resetting switch...\n");
+    log_logic("Obtaining write lock...\n");
+    std::lock_guard<std::mutex> lck (_maps_write_mtx);
+    log_logic("Obtained write lock.\n");
+    _ports.clear();
+    _nets.clear();
+    _fdbs.clear();
+    log_debug("Switch resetted.\n");
+}
+
 Switch::portsmap_t::const_iterator Switch::GetNetByPort (port_t port) const {
     return _ports.find(port);
 }

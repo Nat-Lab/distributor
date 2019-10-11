@@ -25,6 +25,9 @@ protected:
     // Flush FDB entries for a port.
     void FlushFdb (port_t port);
 
+    // Reset switch. Remove all ports, nets, FDBs.
+    void Reset();
+
     // Send an ethernet frame to port. Need to be implement by distributor. 
     virtual void Send (port_t dst, const uint8_t *frame, size_t size) = 0;
 
