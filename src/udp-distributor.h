@@ -9,7 +9,6 @@
 #include <thread>
 #include <memory>
 #include <mutex>
-#include <map>
 #include <unordered_map>
 
 #define DIST_MAGIC 0x5EED
@@ -21,14 +20,16 @@ struct dist_header {
     uint8_t msg_type;
 } __attribute__ ((__packed__));
 
-typedef dist_header dist_header_t;
+typedef struct dist_header dist_header_t;
 
 enum msg_types {
-    ETHERNET_FRAME = 0,
-    ASSOCIATE = 1, 
-    DISSOCIATE = 2, 
-    KEEPALIVE_REQUEST = 3, 
-    KEEPALIVE_RESPOND = 4
+    M_ETHERNET_FRAME = 0, 
+    M_ASSOCIATE_REQUEST = 1, 
+    M_ASSOCIATE_RESPOND = 2,
+    M_KEEPALIVE_REQUEST = 3, 
+    M_KEEPALIVE_RESPOND = 4,
+    M_NEED_ASSOCIATION = 5,
+    M_DISCONNECT = 6
 };
 
 class InetSocketAddress {
@@ -47,9 +48,8 @@ public:
     size_t operator() (const FdbKey &key) const;
 };
 
-class ClientInfo {
+struct ClientInfo {
     struct sockaddr_in address;
-    net_t net;
     time_t last_seen;
 };
 
@@ -63,8 +63,11 @@ public:
     // Stop the server
     void Stop ();
 
+    // Join worker threads
+    void Join ();
+
     typedef std::unordered_map<InetSocketAddress, port_t, InetSocketAddressHasher> clientsmap_t;
-    typedef std::map<port_t, std::shared_ptr<ClientInfo>> infomap_t;
+    typedef std::unordered_map<port_t, std::shared_ptr<ClientInfo>> infomap_t;
 
 private:
     // Worker thread
@@ -91,6 +94,7 @@ private:
     port_t _next_port;
     int _fd;
     clientsmap_t _clients;
+    infomap_t _infos;
     bool _running;
     std::vector<std::thread> _threads;
     std::mutex _write_mtx;
