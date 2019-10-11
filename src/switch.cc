@@ -59,7 +59,7 @@ void Switch::Plug (net_t net, port_t port) {
 }
 
 bool Switch::Unplug (port_t port) {
-    log_debug("Unplugging port %" PRIport " from network %" PRInet "...\n", port, net);
+    log_debug("Unplugging port %" PRIport "...\n", port);
     log_logic("Obtaining write lock...\n");
     std::lock_guard<std::mutex> lck (_maps_write_mtx);
     log_logic("Obtained write lock.\n");
@@ -189,7 +189,7 @@ Switch::fdbsmap_t::iterator Switch::GetFdbByNet (net_t net) {
     fdbsmap_t::iterator it = _fdbs.find(net);
 
     if (it == _fdbs.end()) {
-        log_info("FDB for network %" PRInet " does not exist, creating...\n"), net;
+        log_info("FDB for network %" PRInet " does not exist, creating...\n", net);
         log_logic("Obtaining write lock...\n");
         std::lock_guard<std::mutex> lck (_maps_write_mtx);
         log_logic("Obtained write lock.\n");
