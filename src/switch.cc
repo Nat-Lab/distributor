@@ -99,12 +99,12 @@ bool Switch::Plugged (port_t port) const {
     return _ports.find(port) != _ports.end();
 }
 
-void Switch::Forward (port_t src_port, const uint8_t *frame, size_t size) {
+bool Switch::Forward (port_t src_port, const uint8_t *frame, size_t size) {
     log_debug("Forwarding ethernet frame of size %zu from port %" PRIport ".\n", size, src_port);
 
     if (size < sizeof(ether_header_t)) {
         log_warn("Invalid ethernet frame from port %" PRIport ": size too small.\n", src_port);
-        return;
+        return true;
     }
 
     log_logic("Got packet on port %" PRIport ".\n", port);
@@ -117,7 +117,7 @@ void Switch::Forward (port_t src_port, const uint8_t *frame, size_t size) {
     portsmap_t::const_iterator net_it = GetNetByPort(src_port);
     if (net_it == _ports.end()) {
         log_warn("Port %" PRIport " was not associated with any network.\n", src_port);
-        return;
+        return false;
     }
 
     net_t net = net_it->second;
@@ -137,16 +137,17 @@ void Switch::Forward (port_t src_port, const uint8_t *frame, size_t size) {
         if (dst_port != 0) {
             log_logic("Forwarding frame to port %" PRIport ".\n", dst_port);
             Send(dst_port, frame, size);
-            return;
+            return true;
         }
 
         log_notice("DST address %s was not in FDB, flooding all ports on network %" PRInet ".\n", ether_ntoa(dst), net);
         Broadcast(src_port, net, frame, size);
-        return;
+        return true;
     }
 
     log_logic("DST address is broadcast, flooding all ports on network %" PRInet ".\n", net);
     Broadcast(src_port, net, frame, size);
+    return true;
 }
 
 void Switch::FlushFdb(port_t port) {

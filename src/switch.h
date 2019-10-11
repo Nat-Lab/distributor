@@ -21,8 +21,9 @@ protected:
     // Check if a port is plugged into switch.
     bool Plugged (port_t port) const;
 
-    // Foward an ethernet frame.
-    void Forward (port_t src_port, const uint8_t *frame, size_t size);
+    // Foward an ethernet frame. Return false if port not plugged in. Note that
+    // return true does not necessarily mean that the frame has benn forwarded.
+    bool Forward (port_t src_port, const uint8_t *frame, size_t size);
 
     // Flush FDB entries for a port.
     void FlushFdb (port_t port);
