@@ -34,6 +34,91 @@ UdpDistributor::UdpDistributor(uint32_t n_threads, in_addr_t local_addr, in_port
     _next_port = 1;
 }
 
+Client::Client (const struct sockaddr_in &address, int fd) {
+    memcpy(&_address, &address, sizeof(struct sockaddr_in));
+    _last_seen = _last_sent = time(NULL);
+    _fd = fd;
+    dist_header_t *hdr = (dist_header_t *) _send_buffer;
+    hdr->magic = DIST_MAGIC;
+}
+
+const struct sockaddr_in& Client::AddrRef () const {
+    return _address;
+}
+
+const struct sockaddr_in* Client::AddrPtr () const {
+    return &_address;
+}
+
+ssize_t Client::Disconnect () {
+    log_logic("Sending M_DISCONNECT...\n");
+    return SendMsg(M_DISCONNECT);
+}
+
+ssize_t Client::Keepalive () {
+    log_logic("Sending M_KEEPALIVE_REQUEST...\n");
+    return SendMsg(M_KEEPALIVE_REQUEST);
+}
+
+ssize_t Client::AckKeepalive () {
+    log_logic("Sending M_KEEPALIVE_RESPOND...\n");
+    return SendMsg(M_KEEPALIVE_RESPOND);
+}
+
+ssize_t Client::Associate () {
+    log_logic("Sending M_NEED_ASSOCIATION...\n");
+    return SendMsg(M_NEED_ASSOCIATION);
+}
+
+ssize_t Client::AckAssociate () {
+    log_logic("Sending M_ASSOCIATE_RESPOND...\n");
+    return SendMsg(M_ASSOCIATE_RESPOND);
+}
+
+void Client::Saw () {
+    _last_seen = time(NULL);
+}
+
+ssize_t Client::Write (const uint8_t *buffer, size_t size) {
+    log_logic("Obtaining buffer lock...\n");
+    std::lock_guard<std::mutex> lck (_buf_mutex);
+    log_logic("Obtained buffer lock.\n");
+    dist_header_t *hdr = (dist_header_t *) _send_buffer;
+    hdr->msg_type = M_ETHERNET_FRAME;
+    uint8_t *msg = _send_buffer + sizeof(dist_header_t);
+    size_t pkt_sz = size + sizeof(dist_header_t);
+    if (pkt_sz > DIST_CLIENT_SEND_BUFSZ) {
+        log_error("Ethernet frame size too large. Max size : %d.\n", DIST_CLIENT_SEND_BUFSZ);
+        return 0;
+    }
+    memcpy(msg, buffer, size);
+    ssize_t s_ret = sendto(_fd, _send_buffer, pkt_sz, 0, (const struct sockaddr *) &_address, sizeof(struct sockaddr_in));
+    if (s_ret < 0) {
+        log_error("sendto(): %s.\n", strerror(errno));
+    } else if ((size_t) s_ret != pkt_sz) {
+        log_error("sendto() returned %zu.\n", s_ret);
+    } else _last_sent = time(NULL);
+
+    return s_ret;
+}
+
+ssize_t Client::SendMsg (msg_type_t type) {
+    log_logic("Obtaining buffer lock...\n");
+    std::lock_guard<std::mutex> lck (_buf_mutex);
+    log_logic("Obtained buffer lock.\n");
+    dist_header_t *hdr = (dist_header_t *) _send_buffer;
+    hdr->msg_type = type;
+    ssize_t s_ret = sendto(_fd, _send_buffer, sizeof(dist_header_t), 0, (const struct sockaddr *) &_address, sizeof(struct sockaddr_in));
+
+    if (s_ret < 0) {
+        log_error("sendto(): %s.\n", strerror(errno));
+    } else if ((size_t) s_ret != sizeof(dist_header_t)) {
+        log_error("sendto() returned %zu.\n", s_ret);
+    } else _last_sent = time(NULL);
+
+    return s_ret;
+}
+
 void UdpDistributor::Start () {
     log_debug("Starting distributor...\n");
     if (_running) {
@@ -182,7 +267,7 @@ void UdpDistributor::Worker (int id) {
                 log_warn("Worker%d: Insert client -> port mapping returned element exist.\n", id);
             }
 
-            std::pair<infomap_t::iterator, bool> info_find_ret = _infos.insert(std::make_pair(port, std::make_shared<Client>(client_addr)));
+            std::pair<infomap_t::iterator, bool> info_find_ret = _infos.insert(std::make_pair(port, std::make_shared<Client>(client_addr, _fd)));
 
             iit = info_find_ret.first;
             if (!info_find_ret.second) {
@@ -199,7 +284,7 @@ void UdpDistributor::Worker (int id) {
             log_logic("Obtaining write lock...\n");
             std::lock_guard<std::mutex> lck (_write_mtx);
             log_logic("Obtained write lock.\n");
-            std::pair<infomap_t::iterator, bool> info_find_ret = _infos.insert(std::make_pair(port, std::make_shared<Client>(client_addr)));
+            std::pair<infomap_t::iterator, bool> info_find_ret = _infos.insert(std::make_pair(port, std::make_shared<Client>(client_addr, _fd)));
 
             iit = info_find_ret.first;
             if (!info_find_ret.second) {

@@ -23,7 +23,7 @@ struct dist_header {
 
 typedef struct dist_header dist_header_t;
 
-enum msg_types {
+enum msg_type {
     M_ETHERNET_FRAME = 0, 
     M_ASSOCIATE_REQUEST = 1, 
     M_ASSOCIATE_RESPOND = 2,
@@ -32,6 +32,8 @@ enum msg_types {
     M_NEED_ASSOCIATION = 5,
     M_DISCONNECT = 6
 };
+
+typedef msg_type msg_type_t;
 
 class InetSocketAddress {
 public:
@@ -52,7 +54,7 @@ public:
 
 class Client {
 public:
-    Client (struct sockaddr_in &address);
+    Client (const struct sockaddr_in &address, int fd);
     const struct sockaddr_in& AddrRef () const;
     const struct sockaddr_in* AddrPtr () const;
 
@@ -75,13 +77,18 @@ public:
     void Saw ();
 
     // write an ethrnet frame to client
-    ssize_t Write(const uint8_t *buffer, size_t size);
+    ssize_t Write (const uint8_t *buffer, size_t size);
 
 private:
+    // send a message with no payload
+    ssize_t SendMsg (msg_type_t type);
+
+    std::mutex _buf_mutex;
     struct sockaddr_in _address;
     time_t _last_seen;
     time_t _last_sent;
     uint8_t _send_buffer[DIST_CLIENT_SEND_BUFSZ];
+    int _fd;
 };
 
 class UdpDistributor : private Switch {
@@ -103,6 +110,10 @@ public:
 private:
     // Worker thread
     void Worker (int id);
+
+    // Scavenger thread (send keepalive to unresponsive clients and disconnect 
+    // them if necessary)
+    void Scavenger ();
 
     // inherited
     void Send (port_t client, const uint8_t *buffer, size_t size);
