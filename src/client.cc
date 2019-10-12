@@ -110,6 +110,7 @@ ssize_t DistributorClient::SendMsg (msg_type_t type) {
 }
 
 void DistributorClient::SocketWorker () {
+    log_debug("Socket worker started.\n");
     uint8_t buffer[DIST_CLIENT_BUF_SZ];
     struct sockaddr_in recv_addr;
     while (_running) {
@@ -119,12 +120,12 @@ void DistributorClient::SocketWorker () {
 
         if (len < 0) {
             log_error("recvfrom(): %s.\n", strerror(errno));
-            break;
+            continue;
         }
 
         if (len == 0) {
             log_error("recvfrom() returned 0.\n");
-            break;
+            continue;
         }
 
         if (recv_addr.sin_addr.s_addr != _server.sin_addr.s_addr && recv_addr.sin_port != _server.sin_port) {
@@ -229,6 +230,12 @@ void DistributorClient::SocketWorker () {
                         NicWrite(msg_ptr, msg_len);
                         continue;
                     }
+                    case M_NEED_ASSOCIATION: {
+                        log_info("Server requested client to re-associate.\n");
+                        _state = S_CONNECTED;
+                        SetNetwork(_net);
+                        continue;
+                    }
                     default: {
                         log_warn("Out-of-context message of type %d received in CONNECT state.\n", msg_hdr->msg_type);
                         continue;
@@ -237,7 +244,50 @@ void DistributorClient::SocketWorker () {
                 break;
             }
         }
+
+        log_fatal("??? Got to unreachable location.\n");
     }
+    log_debug("Socket worker stopped.\n");
+}
+
+void DistributorClient::NicWorker () {
+    log_debug("NIC worker started.\n");
+    uint8_t buffer[DIST_CLIENT_BUF_SZ];
+    dist_header_t *msg_hdr = (dist_header_t *) buffer;
+    uint8_t *msg_ptr = buffer + sizeof(dist_header_t);
+    msg_hdr->magic = DIST_CLIENT_MAGIC;
+    msg_hdr->msg_type = M_ETHERNET_FRAME;
+    size_t max_frame_len = DIST_CLIENT_BUF_SZ - sizeof(dist_header_t);
+
+    while (_running) {
+        ssize_t read_len = NicRead(msg_ptr, max_frame_len);
+        if (read_len == 0) {
+            log_warn("Reading from NIC returned 0. Is NIC up?\n");
+            continue;
+        }
+        if (read_len < 0) {
+            log_error("Error reading NIC: %s.\n", strerror(errno));
+            continue;
+        }
+        if (_state != S_ASSOCIATED) {
+            log_notice("Discared ethernet frame from NIC because client is not yet associated.\n");
+            continue;
+        }
+        size_t pkt_len = sizeof(dist_header_t) + (size_t) read_len;
+        ssize_t s_ret = sendto(_fd, buffer, pkt_len, 0, (const struct sockaddr *) &_server, sizeof(struct sockaddr_in));
+        if (s_ret < 0) {
+            log_error("sendto(): %s.\n", strerror(errno));
+            return;
+        }
+        if ((size_t) s_ret != pkt_len) {
+            log_error("sendto() returned %zu, but pkt len is %zu.\n", (size_t) s_ret, pkt_len);
+            return;
+        }
+        _last_sent = time(NULL);
+
+    }
+
+    log_debug("NIC worker stopped.\n");
 }
 
 
