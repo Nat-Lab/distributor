@@ -332,7 +332,7 @@ void UdpDistributor::Worker (int id) {
             case M_ASSOCIATE_REQUEST: {
                 log_logic("Got M_ASSOCIATE_REQUEST from client on port %" PRIport ".\n", port);
                 if (msg_len != sizeof(net_t)) {
-                    log_warn("Invalid ASSOCIATE_REQUEST message from client on port %" PRIport ".\n", port);
+                    log_warn("Invalid ASSOCIATE_REQUEST message from client on port %" PRIport ". (len = %zu)\n", port, msg_len);
                     break;
                 }
                 net_t net = ntohl(*(const net_t *) msg_ptr);
@@ -351,6 +351,7 @@ void UdpDistributor::Worker (int id) {
             case M_DISCONNECT: {
                 log_logic("Got M_DISCONNECT from client on port %" PRIport ".\n", port);
                 log_info("Got disconnect request from client on port %" PRIport ", unregister client.\n", port);
+                Unplug(port);
                 log_logic("Obtaining write lock...\n");
                 std::lock_guard<std::mutex> lck (_write_mtx);
                 log_logic("Obtained write lock.\n");
@@ -385,6 +386,7 @@ void UdpDistributor::Scavenger () {
                 port_t port = iit->first;
                 iit->second->Disconnect();
                 log_info("Client on port %" PRIport " seems to be dead, remove.\n", port);
+                Unplug(port);
                 clientsmap_t::const_iterator cit = _clients.find(InetSocketAddress(iit->second->AddrRef()));
                 if (cit == _clients.end()) {
                     log_error("Try to remove client but port info missing in addr -> port mapping.\n");
