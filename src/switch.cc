@@ -212,7 +212,7 @@ void Switch::FlushFdbPriv (net_t net, port_t port) {
     fdbsmap_t::iterator it = _fdbs.find(net);
 
     if (it == _fdbs.end()) {
-        log_debug("No FDB exist for net %" PRInet ". Skipping Flish.\n", net);
+        log_debug("No FDB exist for net %" PRInet ". Skipping flush.\n", net);
         return;
     }
 
