@@ -93,6 +93,7 @@ bool Client::IsAlive () {
 
     if (lastseen_diff >= DIST_UDP_KEEPALIVE * DIST_UDP_RETRIES) {
         log_debug("Client %s:%d last seen %" PRIi64 " seconds ago, last sent %" PRIi64 " seconds ago, assume client dead.\n", inet_ntoa(_address.sin_addr), ntohs(_address.sin_port), lastseen_diff, lastsent_diff);
+        SendMsg(M_DISCONNECT);
         return false;
     }
 
