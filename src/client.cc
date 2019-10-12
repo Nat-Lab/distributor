@@ -290,5 +290,32 @@ void DistributorClient::NicWorker () {
     log_debug("NIC worker stopped.\n");
 }
 
+void DistributorClient::Pinger () {
+    log_debug("Pinger started.\n");
+    while (_running) {
+        std::unique_lock<std::mutex> lock (_pinger_mtx);
+        if (_state == S_IDLE) {
+            log_debug("Client running but idle, send init keepalive to server.\n");
+            SendMsg(M_KEEPALIVE_REQUEST);
+        } else {
+            int64_t lastsent_diff = time(NULL) - _last_sent;
+            int64_t lastrecv_diff = time(NULL) - _last_recv;
+
+            if (lastsent_diff >= DIST_CLIENT_KEEPALIVE && lastrecv_diff >= DIST_CLIENT_KEEPALIVE) {
+                log_debug("Nothing received from server for %" PRIi64 " seconds, send keepalive.\n");
+                SendMsg(M_KEEPALIVE_REQUEST);
+            }
+
+            if (lastrecv_diff >= DIST_CLIENT_RETRY * DIST_CLIENT_KEEPALIVE) {
+                log_warn("Nothing received from server for %" PRIi64 " seconds, disconnect and go idle.\n");
+                SendMsg(M_DISCONNECT);
+                _state = S_IDLE;
+            }
+        }
+        if (_pinger_cv.wait_for(lock, std::chrono::seconds(1)) != std::cv_status::timeout) break;
+    }
+    // FIXME: race-condition on SendMsg()?
+    log_debug("Pinger stopped.\n");
+}
 
 }

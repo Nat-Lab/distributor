@@ -1,10 +1,15 @@
 #include "types.h"
 #include <thread>
 #include <vector>
+#include <mutex>
+#include <condition_variable>
+#include <chrono>
 #include <sys/socket.h>
 #include <netinet/in.h>
 #define DIST_CLIENT_BUF_SZ 65536
 #define DIST_CLIENT_MAGIC 0x5EED
+#define DIST_CLIENT_KEEPALIVE 30
+#define DIST_CLIENT_RETRY 3
 
 namespace distributor {
 
@@ -64,6 +69,8 @@ private:
     time_t _last_sent;
     time_t _last_recv;
     bool _running;
+    std::mutex _pinger_mtx;
+    std::condition_variable _pinger_cv;
 };
 
 }
