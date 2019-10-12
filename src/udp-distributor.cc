@@ -145,6 +145,7 @@ void UdpDistributor::Start () {
         log_error("Distributor was already running.\n");
         return;
     }
+    _running = true;
 
     struct sockaddr_in local_sockaddr;
     memset(&local_sockaddr, 0, sizeof(struct sockaddr_in));
@@ -183,8 +184,6 @@ void UdpDistributor::Start () {
     scavenger_thread.detach();
 
     log_info("Distributor ready.\n");
-
-    _running = true;
 }
 
 void UdpDistributor::Stop () {
