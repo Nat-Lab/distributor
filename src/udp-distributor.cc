@@ -174,12 +174,12 @@ void UdpDistributor::Start () {
         return;
     }
 
+    _running = true;
+
     for (uint32_t i = 0; i < _n_threads; i++) {
         log_debug("Starting worker %d...\n", i);
         _threads.push_back(std::thread(&UdpDistributor::Worker, this, i));
     }
-
-    _running = true;
 
     std::thread scavenger_thread (&UdpDistributor::Scavenger, this);
     scavenger_thread.detach();
