@@ -2,6 +2,7 @@
 #define DIST_UDP_DIST_H
 #include "switch.h"
 #include "vars.h"
+#include "types.h"
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <stdint.h>
@@ -17,25 +18,6 @@
 #define DIST_MAGIC 0x5EED
 
 namespace distributor {
-
-struct dist_header {
-    uint16_t magic;
-    uint8_t msg_type;
-} __attribute__ ((__packed__));
-
-typedef struct dist_header dist_header_t;
-
-enum msg_type {
-    M_ETHERNET_FRAME = 0, 
-    M_ASSOCIATE_REQUEST = 1, 
-    M_ASSOCIATE_RESPOND = 2,
-    M_KEEPALIVE_REQUEST = 3, 
-    M_KEEPALIVE_RESPOND = 4,
-    M_NEED_ASSOCIATION = 5,
-    M_DISCONNECT = 6
-};
-
-typedef msg_type msg_type_t;
 
 class InetSocketAddress {
 public:
