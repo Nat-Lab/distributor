@@ -42,11 +42,12 @@ public:
 
 private:
     struct sockaddr_in address;
+    size_t hash;
 };
 
 class InetSocketAddressHasher {
 public:
-    size_t operator() (const FdbKey &key) const;
+    size_t operator() (const InetSocketAddress &key) const;
 };
 
 class Client {
@@ -77,9 +78,10 @@ public:
     ssize_t Write(const uint8_t *buffer, size_t size);
 
 private:
-    struct sockaddr_in address;
-    time_t last_seen;
-    uint8_t send_buffer[DIST_CLIENT_SEND_BUFSZ];
+    struct sockaddr_in _address;
+    time_t _last_seen;
+    time_t _last_sent;
+    uint8_t _send_buffer[DIST_CLIENT_SEND_BUFSZ];
 };
 
 class UdpDistributor : private Switch {

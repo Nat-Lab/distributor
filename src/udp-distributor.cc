@@ -7,6 +7,25 @@
 
 namespace distributor {
 
+InetSocketAddress::InetSocketAddress() {}
+InetSocketAddress::InetSocketAddress(const struct sockaddr_in &addr) {
+    memcpy(&address, &addr, sizeof(struct sockaddr_in));
+    hash = addr.sin_addr.s_addr + (addr.sin_port << sizeof(addr.sin_addr.s_addr));
+    log_logic("Hash(%s:%d): %zu\n", inet_ntoa(addr.sin_addr), ntohs(addr.sin_port), hash);
+}
+
+bool InetSocketAddress::operator== (const InetSocketAddress &other) const {
+    return memcmp(&other, &address, sizeof(struct sockaddr_in)) == 0;
+}
+
+size_t InetSocketAddress::Hash() const {
+    return hash;
+}
+
+size_t InetSocketAddressHasher::operator() (const InetSocketAddress &key) const {
+    return key.Hash();
+}
+
 UdpDistributor::UdpDistributor(uint32_t n_threads, in_addr_t local_addr, in_port_t local_port) {
     _local_addr = local_addr;
     _local_port = local_port;
@@ -50,7 +69,7 @@ void UdpDistributor::Start () {
         return;
     }
 
-    for (int i = 0; i < _n_threads; i++) {
+    for (uint32_t i = 0; i < _n_threads; i++) {
         log_debug("Starting worker %d...\n", i);
         _threads.push_back(std::thread(&UdpDistributor::Worker, this, i));
     }
@@ -75,7 +94,7 @@ void UdpDistributor::Stop () {
 
     for (infomap_t::iterator it = _infos.begin(); it != _infos.end(); it++) {
         Client &c = *(it->second);
-        log_debug("Sending DISCONNECT to %s:%d.\n", inet_ntoa(c.address.sin_addr), ntohs(c.address.sin_port));
+        log_debug("Sending DISCONNECT to %s:%d.\n", inet_ntoa(c.AddrRef().sin_addr), ntohs(c.AddrRef().sin_port));
         //ssize_t s_ret = sendto(_fd, &disconnect_request, sizeof(dist_header_t), 0, (const struct sockaddr *) c.AddrPtr(), sizeof(struct sockaddr_in));
         ssize_t s_ret = c.Disconnect();
         if (s_ret < 0) log_error("Error sending DISCONNECT to %s:%d: %s.\n", inet_ntoa(c.AddrRef().sin_addr), ntohs(c.AddrRef().sin_port), strerror(errno));
@@ -203,7 +222,7 @@ void UdpDistributor::Worker (int id) {
             case M_ASSOCIATE_REQUEST: {
                 log_logic("Got M_ASSOCIATE_REQUEST from client on port %" PRIport ".\n", port);
                 if (msg_len != sizeof(net_t)) {
-                    log_warn("Invalid ASSOCIATE_REQUEST message from client on port %" PRIport, ".\n", port);
+                    log_warn("Invalid ASSOCIATE_REQUEST message from client on port %" PRIport ".\n", port);
                     break;
                 }
                 net_t net = ntohl(*(const net_t *) msg_ptr);
@@ -230,7 +249,7 @@ void UdpDistributor::Worker (int id) {
                 continue;
             }
             default:
-                log_warn("Invalid message type %d from client on port &" PRIport ".\n", msg_hdr->msg_type, port);
+                log_warn("Invalid message type %d from client on port %" PRIport ".\n", msg_hdr->msg_type, port);
                 continue;
         }
 
