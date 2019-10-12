@@ -92,6 +92,17 @@ port_t Fdb::Lookup (const ether_addr_t &addr) {
 
 bool Fdb::Insert (port_t port, const ether_addr_t &addr) {
     log_debug("Fdb%" PRInet ": Inserting: %s@%" PRIport "\n", _network, ether_ntoa(&addr), port);
+
+    fdb_t::iterator it = _fdb.find(FdbKey(addr));
+
+    if (it != _fdb.end()) {
+        log_logic("Entry exists, skipping lock and update directly.\n");
+        it->second.Refresh();
+        it->second.SetPort(port);
+        log_debug("Fdb%" PRInet ": Refreshed: %s@%" PRIport "\n", _network, ether_ntoa(&addr), port);
+        return false;
+    }
+
     log_logic("Fdb%" PRInet ": Obtaining write lock...\n", _network);
     std::lock_guard<std::mutex> lck (_fdb_write_mtx);
     log_logic("Fdb%" PRInet ": Obtained write lock.\n", _network);
@@ -101,7 +112,7 @@ bool Fdb::Insert (port_t port, const ether_addr_t &addr) {
     if (!rslt.second) {
         (*(rslt.first)).second.Refresh(); 
         (*(rslt.first)).second.SetPort(port);
-        log_info("Fdb%" PRInet ": Refreshed: %s@%" PRIport "\n", _network, ether_ntoa(&addr), port);
+        log_debug("Fdb%" PRInet ": Refreshed: %s@%" PRIport "\n", _network, ether_ntoa(&addr), port);
     } else {
         log_info("Fdb%" PRInet ": Inserted: %s@%" PRIport "\n", _network, ether_ntoa(&addr), port);
     }
