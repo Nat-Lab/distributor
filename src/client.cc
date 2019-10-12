@@ -11,6 +11,7 @@ DistributorClient::DistributorClient (in_addr_t server_addr, in_port_t port, net
     _server.sin_family = AF_INET;
     _server.sin_port = port;
     _running = false;
+    _net = net;
     _state = S_IDLE;
 }
 
@@ -302,12 +303,12 @@ void DistributorClient::Pinger () {
             int64_t lastrecv_diff = time(NULL) - _last_recv;
 
             if (lastsent_diff >= DIST_CLIENT_KEEPALIVE && lastrecv_diff >= DIST_CLIENT_KEEPALIVE) {
-                log_debug("Nothing received from server for %" PRIi64 " seconds, send keepalive.\n");
+                log_debug("Nothing received from server for %" PRIi64 " seconds, send keepalive.\n", lastrecv_diff);
                 SendMsg(M_KEEPALIVE_REQUEST);
             }
 
             if (lastrecv_diff >= DIST_CLIENT_RETRY * DIST_CLIENT_KEEPALIVE) {
-                log_warn("Nothing received from server for %" PRIi64 " seconds, disconnect and go idle.\n");
+                log_warn("Nothing received from server for %" PRIi64 " seconds, disconnect and go idle.\n", lastrecv_diff);
                 SendMsg(M_DISCONNECT);
                 _state = S_IDLE;
             }
