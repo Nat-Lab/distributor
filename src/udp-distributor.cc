@@ -247,7 +247,7 @@ void UdpDistributor::Worker (int id) {
     uint8_t buffer[DIST_WOROKER_READ_BUFSZ];
 
     while (_running) {
-        socklen_t client_addr_len = sizeof(struct sockaddr_in);
+        static socklen_t client_addr_len = sizeof(struct sockaddr_in);
 
         log_logic("Worker%d: waiting for incoming packet...\n", id);
         ssize_t len = recvfrom(_fd, buffer, DIST_WOROKER_READ_BUFSZ, 0, (struct sockaddr *) &client_addr, &client_addr_len);
@@ -256,12 +256,12 @@ void UdpDistributor::Worker (int id) {
 
         if (len < 0) {
             log_error("Worker%d: recvfrom(): %s.\n", id, strerror(errno));
-            break;
+            continue;
         }
 
         if (len == 0) {
             log_error("Worker%d: recvfrom() returned 0.\n", id);
-            break;
+            continue;
         }
 
         if ((size_t) len < sizeof(dist_header_t)) {
