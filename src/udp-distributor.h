@@ -11,6 +11,8 @@
 #include <memory>
 #include <mutex>
 #include <unordered_map>
+#include <condition_variable>
+#include <chrono>
 
 #define DIST_MAGIC 0x5EED
 
@@ -76,6 +78,9 @@ public:
     // update last_seen value.
     void Saw ();
 
+    // check if client is alive (might sent keepalive)
+    bool IsAlive ();
+
     // write an ethrnet frame to client
     ssize_t Write (const uint8_t *buffer, size_t size);
 
@@ -128,6 +133,8 @@ private:
     bool _running;
     std::vector<std::thread> _threads;
     std::mutex _write_mtx;
+    std::mutex _scavenger_mtx;
+    std::condition_variable _scavenger_cv;
 };
 
 }

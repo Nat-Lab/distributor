@@ -79,6 +79,26 @@ void Client::Saw () {
     _last_seen = time(NULL);
 }
 
+bool Client::IsAlive () {
+    int64_t lastseen_diff = time(NULL) - _last_seen;
+    int64_t lastsent_diff = time(NULL) - _last_sent;
+    log_logic("Client %s:%d last seen %" PRIi64 " seconds ago, last sent %" PRIi64 " seconds ago.\n", inet_ntoa(_address.sin_addr), ntohs(_address.sin_port), lastseen_diff, lastsent_diff);
+
+    // Need to request keepalive, but still assume client is alive.
+    if (lastsent_diff > DIST_UDP_KEEPALIVE && lastseen_diff > DIST_UDP_KEEPALIVE) {
+        log_debug("Client %s:%d last seen %" PRIi64 " seconds ago, last sent %" PRIi64 " seconds ago, send KEEPALIVE.\n", inet_ntoa(_address.sin_addr), ntohs(_address.sin_port), lastseen_diff, lastsent_diff);
+        Keepalive();
+        return true;
+    }
+
+    if (lastseen_diff > DIST_UDP_KEEPALIVE * DIST_UDP_RETRIES) {
+        log_debug("Client %s:%d last seen %" PRIi64 " seconds ago, last sent %" PRIi64 " seconds ago, assume client dead.\n", inet_ntoa(_address.sin_addr), ntohs(_address.sin_port), lastseen_diff, lastsent_diff);
+        return false;
+    }
+
+    return true;
+}
+
 ssize_t Client::Write (const uint8_t *buffer, size_t size) {
     log_logic("Obtaining buffer lock...\n");
     std::lock_guard<std::mutex> lck (_buf_mutex);
@@ -159,6 +179,9 @@ void UdpDistributor::Start () {
         _threads.push_back(std::thread(&UdpDistributor::Worker, this, i));
     }
 
+    std::thread scavenger_thread (&UdpDistributor::Scavenger, this);
+    scavenger_thread.detach();
+
     log_info("Distributor ready.\n");
 
     _running = true;
@@ -187,6 +210,9 @@ void UdpDistributor::Stop () {
 
     log_debug("Closing socket...\n");
     int close_ret = close(_fd);
+
+    log_debug("Stopping scavenger...\n");
+    _scavenger_cv.notify_all();
 
     if (close_ret < 0) {
         log_fatal("close(): %s\n", strerror(close_ret));
@@ -347,6 +373,29 @@ void UdpDistributor::Worker (int id) {
 
     if (!_running) log_info("Worker%d: stopped.\n", id);
     else log_warn("Worker%d: stopped unexpectedly.\n", id);
+}
+
+void UdpDistributor::Scavenger () {
+    log_info("Scavenger started.\n");
+    while (_running) {
+        std::unique_lock<std::mutex> lock (_scavenger_mtx);
+        infomap_t::iterator iit = _infos.begin();
+        while (iit != _infos.end()) {
+            if (!iit->second->IsAlive()) {
+                // client is gone, remove it.
+                port_t port = iit->first;
+                iit->second->Disconnect();
+                log_info("Client on port %" PRIport " seems to be dead, remove.\n", port);
+                clientsmap_t::const_iterator cit = _clients.find(InetSocketAddress(iit->second->AddrRef()));
+                if (cit == _clients.end()) {
+                    log_error("Try to remove client but port info missing in addr -> port mapping.\n");
+                } else _clients.erase(cit);
+                iit = _infos.erase(iit);
+            } else iit++;
+        }
+        if (_scavenger_cv.wait_for(lock, std::chrono::seconds(1)) != std::cv_status::timeout) break;
+    }
+    log_info("Scavenger stopped.\n");
 }
 
 void UdpDistributor::Send (port_t client, const uint8_t *buffer, size_t size) {
