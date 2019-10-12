@@ -85,13 +85,13 @@ bool Client::IsAlive () {
     log_logic("Client %s:%d last seen %" PRIi64 " seconds ago, last sent %" PRIi64 " seconds ago.\n", inet_ntoa(_address.sin_addr), ntohs(_address.sin_port), lastseen_diff, lastsent_diff);
 
     // Need to request keepalive, but still assume client is alive.
-    if (lastsent_diff > DIST_UDP_KEEPALIVE && lastseen_diff > DIST_UDP_KEEPALIVE) {
+    if (lastsent_diff >= DIST_UDP_KEEPALIVE && lastseen_diff >= DIST_UDP_KEEPALIVE) {
         log_debug("Client %s:%d last seen %" PRIi64 " seconds ago, last sent %" PRIi64 " seconds ago, send KEEPALIVE.\n", inet_ntoa(_address.sin_addr), ntohs(_address.sin_port), lastseen_diff, lastsent_diff);
         Keepalive();
         return true;
     }
 
-    if (lastseen_diff > DIST_UDP_KEEPALIVE * DIST_UDP_RETRIES) {
+    if (lastseen_diff >= DIST_UDP_KEEPALIVE * DIST_UDP_RETRIES) {
         log_debug("Client %s:%d last seen %" PRIi64 " seconds ago, last sent %" PRIi64 " seconds ago, assume client dead.\n", inet_ntoa(_address.sin_addr), ntohs(_address.sin_port), lastseen_diff, lastsent_diff);
         return false;
     }
@@ -370,12 +370,12 @@ void UdpDistributor::Worker (int id) {
         // FIXME: what if iit/cit got deleted during message processing?
     }
 
-    if (!_running) log_info("Worker%d: stopped.\n", id);
+    if (!_running) log_debug("Worker%d: stopped.\n", id);
     else log_warn("Worker%d: stopped unexpectedly.\n", id);
 }
 
 void UdpDistributor::Scavenger () {
-    log_info("Scavenger started.\n");
+    log_debug("Scavenger started.\n");
     while (_running) {
         std::unique_lock<std::mutex> lock (_scavenger_mtx);
         infomap_t::iterator iit = _infos.begin();
