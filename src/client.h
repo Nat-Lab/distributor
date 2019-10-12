@@ -9,11 +9,10 @@
 namespace distributor {
 
 enum DistributorClientState {
-    S_IDLE,
-    S_CONNECTE,
-    S_CONNECTED,
-    S_ASSOCIATED,
-    S_TIMEOUT
+    S_IDLE = 0,
+    S_CONNECT = 1,
+    S_CONNECTED = 2,
+    S_ASSOCIATED = 3
 };
 
 class DistributorClient {
