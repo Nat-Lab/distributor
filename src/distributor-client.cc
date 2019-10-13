@@ -250,6 +250,7 @@ void DistributorClient::SocketWorker () {
                     case M_COMPRESSED_ETHERNET_FRAME: {
                         const comp_hdr_t *comp_hdr = (const comp_hdr_t *) msg_ptr;
                         const uint8_t *frame = msg_ptr + sizeof(comp_hdr_t);
+                        log_debug("Compressed data: compressed len: %zu, orig len: %d.\n", msg_len - sizeof(comp_hdr_t), ntohs(comp_hdr->frame_len));
                         int dec_sz = LZ4_decompress_safe((const char*) frame, (char *) dec_buffer,  msg_len - sizeof(comp_hdr_t), ntohs(comp_hdr->frame_len));
                         if (dec_sz < 0) {
                             log_warn("Failed to decompress ethernet frame from server.\n");
@@ -279,6 +280,7 @@ void DistributorClient::NicWorker () {
     if (_compression) comp_buffer = (uint8_t *) malloc(DIST_CLIENT_BUF_SZ);
     dist_header_t *msg_hdr = (dist_header_t *) buffer;
     uint8_t *msg_ptr = buffer + sizeof(dist_header_t);
+    comp_hdr_t *comp_hdr = (comp_hdr_t *) msg_ptr;
     uint8_t *frame_ptr = msg_ptr + sizeof(comp_hdr_t);
     msg_hdr->magic = htons(DIST_CLIENT_MAGIC);
     msg_hdr->msg_type = _compression ? M_COMPRESSED_ETHERNET_FRAME : M_ETHERNET_FRAME;
@@ -301,13 +303,14 @@ void DistributorClient::NicWorker () {
 
         int compressed_size = 0;
         if (_compression) {
+            
             int max_compressed_size = LZ4_compressBound(read_len);
             if ((size_t) max_compressed_size > max_frame_len) {
                 log_warn("Compressed frame is too big to fit.\n");
                 continue;
             }
             compressed_size = LZ4_compress_default((const char *) comp_buffer, (char *) frame_ptr, read_len, max_frame_len);
-
+            comp_hdr->frame_len = htons((uint16_t) compressed_size);
             if (compressed_size <= 0) {
                 log_warn("Error compressing data.\n");
                 continue;
