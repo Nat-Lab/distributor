@@ -35,7 +35,7 @@ private:
     size_t hash;
 };
 
-size_t hash_value(const InetSocketAddress &i);
+std::size_t hash_value(const InetSocketAddress &addr);
 
 class Client {
 public:

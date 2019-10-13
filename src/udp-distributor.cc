@@ -31,7 +31,7 @@ size_t InetSocketAddress::Hash() const {
     return hash;
 }
 
-size_t hash_value(const InetSocketAddress &addr) {
+std::size_t hash_value(const InetSocketAddress &addr) {
     return addr.Hash();
 }
 
