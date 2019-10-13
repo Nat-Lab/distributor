@@ -7,7 +7,6 @@
 #include <netinet/ether.h>
 #endif
 #include <unordered_map>
-#include <mutex>
 
 namespace distributor {
 
@@ -74,9 +73,6 @@ private:
 
     // etheraddr to fdn entry mapping (fdb)
     fdb_t _fdb;
-
-    // write mutex for fdb
-    std::mutex _fdb_write_mtx;
 
 };
 

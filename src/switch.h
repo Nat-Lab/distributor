@@ -5,7 +5,6 @@
 #include <stdint.h>
 #include <unordered_map>
 #include <vector>
-#include <mutex>
 #include <memory>
 
 namespace distributor {
@@ -66,9 +65,6 @@ private:
 
     // network to fdb mapping
     fdbsmap_t _fdbs;
-
-    // mutex for maps
-    std::mutex _maps_write_mtx;
 };
 
 }

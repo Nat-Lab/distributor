@@ -70,7 +70,6 @@ private:
     // send a message with no payload
     ssize_t SendMsg (msg_type_t type);
 
-    std::mutex _buf_mutex;
     struct sockaddr_in _address;
     time_t _last_seen;
     time_t _last_sent;
@@ -113,7 +112,6 @@ private:
     infomap_t _infos;
     bool _running;
     std::vector<std::thread> _threads;
-    std::mutex _write_mtx;
     std::mutex _scavenger_mtx;
     std::condition_variable _scavenger_cv;
 };
