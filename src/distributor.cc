@@ -23,7 +23,7 @@ void handle_signal (__attribute__((unused)) int sig) {
 void help (const char *me) {
     fprintf(stderr, "usage: %s [-h] -b BIND_ADDR -p BIND_PORT\n", me);
     fprintf(stderr, "\n");
-    fprintf(stderr, "TUN/TAP based Linux client for distributor.\n");
+    fprintf(stderr, "distributor: virtual ethernet switch.\n");
     fprintf(stderr, "\n");
     fprintf(stderr, "required arguments:\n");
     fprintf(stderr, "  -b BIND_ADDR     Address to bind on.\n");
