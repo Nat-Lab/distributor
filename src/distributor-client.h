@@ -24,7 +24,7 @@ enum DistributorClientState {
 
 class DistributorClient {
 public:
-    DistributorClient (in_addr_t server_addr, in_port_t port, net_t net);
+    DistributorClient (in_addr_t server_addr, in_port_t port, net_t net, bool compression);
 
     // Change network
     void SetNetwork (net_t net);
@@ -64,6 +64,7 @@ private:
     // Pinger thread (send keepalive/server status checker)
     void Pinger ();
 
+    bool _compression;
     net_t _net;
     struct sockaddr_in _server;
     std::vector<std::thread> _threads;

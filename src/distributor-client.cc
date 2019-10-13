@@ -3,10 +3,11 @@
 #include <unistd.h>
 #include <arpa/inet.h>
 #include <string.h>
+#include <lz4.h>
 
 namespace distributor {
 
-DistributorClient::DistributorClient (in_addr_t server_addr, in_port_t port, net_t net) {
+DistributorClient::DistributorClient (in_addr_t server_addr, in_port_t port, net_t net, bool compression) {
     memset(&_server, 0, sizeof(struct sockaddr_in));
     _server.sin_addr.s_addr = server_addr;
     _server.sin_family = AF_INET;
@@ -14,6 +15,7 @@ DistributorClient::DistributorClient (in_addr_t server_addr, in_port_t port, net
     _running = false;
     _net = net;
     _state = S_IDLE;
+    _compression = compression;
 }
 
 void DistributorClient::SetNetwork (net_t net) {
@@ -119,6 +121,7 @@ ssize_t DistributorClient::SendMsg (msg_type_t type) {
 void DistributorClient::SocketWorker () {
     log_debug("Socket worker started.\n");
     uint8_t buffer[DIST_CLIENT_BUF_SZ];
+    uint8_t dec_buffer[DIST_CLIENT_BUF_SZ];
     struct sockaddr_in recv_addr;
     while (_running) {
         static socklen_t saddr_len = sizeof(struct sockaddr_in);
@@ -244,6 +247,17 @@ void DistributorClient::SocketWorker () {
                         SetNetwork(_net);
                         continue;
                     }
+                    case M_COMPRESSED_ETHERNET_FRAME: {
+                        const comp_hdr_t *comp_hdr = (const comp_hdr_t *) msg_ptr;
+                        const uint8_t *frame = msg_ptr + sizeof(comp_hdr_t);
+                        int dec_sz = LZ4_decompress_safe((const char*) frame, (char *) dec_buffer, ntohs(comp_hdr->frame_len), DIST_CLIENT_BUF_SZ);
+                        if (dec_sz < 0) {
+                            log_warn("Failed to decompress ethernet frame from server.\n");
+                            continue;
+                        }
+                        NicWrite(dec_buffer, dec_sz);
+                        continue;
+                    }
                     default: {
                         log_warn("Out-of-context message of type %d received in CONNECTED state.\n", msg_hdr->msg_type);
                         continue;
@@ -261,14 +275,17 @@ void DistributorClient::SocketWorker () {
 void DistributorClient::NicWorker () {
     log_debug("NIC worker started.\n");
     uint8_t buffer[DIST_CLIENT_BUF_SZ];
+    uint8_t *comp_buffer = nullptr;
+    if (_compression) comp_buffer = (uint8_t *) malloc(DIST_CLIENT_BUF_SZ);
     dist_header_t *msg_hdr = (dist_header_t *) buffer;
     uint8_t *msg_ptr = buffer + sizeof(dist_header_t);
+    uint8_t *frame_ptr = msg_ptr + sizeof(comp_hdr_t);
     msg_hdr->magic = htons(DIST_CLIENT_MAGIC);
-    msg_hdr->msg_type = M_ETHERNET_FRAME;
+    msg_hdr->msg_type = _compression ? M_COMPRESSED_ETHERNET_FRAME : M_ETHERNET_FRAME;
     size_t max_frame_len = DIST_CLIENT_BUF_SZ - sizeof(dist_header_t);
 
     while (_running) {
-        ssize_t read_len = NicRead(msg_ptr, max_frame_len);
+        ssize_t read_len = _compression ? NicRead(comp_buffer, DIST_CLIENT_BUF_SZ) : NicRead(msg_ptr, max_frame_len);
         if (read_len == 0) {
             log_warn("Reading from NIC returned 0. Is NIC up?\n");
             continue;
@@ -281,7 +298,23 @@ void DistributorClient::NicWorker () {
             log_notice("Discared ethernet frame from NIC because client is not yet associated.\n");
             continue;
         }
-        size_t pkt_len = sizeof(dist_header_t) + (size_t) read_len;
+
+        int compressed_size = 0;
+        if (_compression) {
+            int max_compressed_size = LZ4_compressBound(read_len);
+            if ((size_t) max_compressed_size > max_frame_len) {
+                log_warn("Compressed frame is too big to fit.\n");
+                continue;
+            }
+            compressed_size = LZ4_compress_default((const char *) comp_buffer, (char *) frame_ptr, read_len, max_frame_len);
+
+            if (compressed_size <= 0) {
+                log_warn("Error compressing data.\n");
+                continue;
+            }
+        }
+
+        size_t pkt_len = sizeof(dist_header_t) + (_compression ? compressed_size : (size_t) read_len);
         ssize_t s_ret = sendto(_fd, buffer, pkt_len, 0, (const struct sockaddr *) &_server, sizeof(struct sockaddr_in));
         if (s_ret < 0) {
             log_error("sendto(): %s.\n", strerror(errno));
@@ -294,7 +327,7 @@ void DistributorClient::NicWorker () {
         _last_sent = time(NULL);
 
     }
-
+    if (_compression) free(comp_buffer);
     log_debug("NIC worker stopped.\n");
 }
 

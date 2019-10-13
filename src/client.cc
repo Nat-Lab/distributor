@@ -21,7 +21,7 @@ void handle_signal (__attribute__((unused)) int sig) {
 }
 
 void help (const char *me) {
-    fprintf(stderr, "usage: %s [-h] -d DEV -s SERVER_ADDR -p SERVER_PORT\n", me);
+    fprintf(stderr, "usage: %s [-h] [-c] -d DEV -s SERVER_ADDR -p SERVER_PORT -n NET\n", me);
     fprintf(stderr, "\n");
     fprintf(stderr, "TUN/TAP based Linux client for distributor.\n");
     fprintf(stderr, "\n");
@@ -29,9 +29,11 @@ void help (const char *me) {
     fprintf(stderr, "  -d DEV           Name of the TAP device to create.\n");
     fprintf(stderr, "  -s SERVER_ADDR   IP address of the distributor.\n");
     fprintf(stderr, "  -p SERVER_PORT   Port of the distributor.\n");
+    fprintf(stderr, "  -n NET           ID of the network to join.\n");
     fprintf(stderr, "\n");
     fprintf(stderr, "optional arguments:\n");
     fprintf(stderr, "  -h               Print this help message and exit.\n");
+    fprintf(stderr, "  -c               Enable compression on outgoing packets.\n");
 }
 
 int main (int argc, char **argv) {
@@ -39,8 +41,11 @@ int main (int argc, char **argv) {
     char *dev = nullptr;
     char *server = nullptr;
     in_port_t port = 0;
+    net_t net = 0;
+    bool net_set = false;
+    bool compression = false;
 
-    while ((opt = getopt(argc, argv, "hd:s:p:")) != -1) {
+    while ((opt = getopt(argc, argv, "hcd:s:p:n:")) != -1) {
         switch (opt) {
             case 'd': 
                 dev = strdup(optarg);
@@ -51,6 +56,13 @@ int main (int argc, char **argv) {
             case 'p':
                 port = (in_port_t) atoi(optarg);
                 break;
+            case 'n':
+                net = (net_t) atoi(optarg);
+                net_set = true;
+                break;
+            case 'c':
+                compression = true;
+                break;
             case 'h':
                 help (argv[0]);
                 return 0;
@@ -60,7 +72,7 @@ int main (int argc, char **argv) {
         }
     }
 
-    if (dev == nullptr || server == nullptr || port == 0) {
+    if (dev == nullptr || server == nullptr || port == 0 || !net_set) {
         help (argv[0]);
         return 1;
     }
@@ -68,7 +80,7 @@ int main (int argc, char **argv) {
     signal(SIGINT, handle_signal);
     signal(SIGTERM, handle_signal);
 
-    TapClient client (dev, strlen(dev), inet_addr(server), htons(port), 1);
+    TapClient client (dev, strlen(dev), inet_addr(server), htons(port), net, compression);
     ::client = &client;
     client.Start();
     client.Join();

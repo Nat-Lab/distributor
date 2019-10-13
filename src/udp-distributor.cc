@@ -5,6 +5,7 @@
 #include <fcntl.h>
 #include <unistd.h>
 #include <arpa/inet.h>
+#include <lz4.h>
 
 namespace distributor {
 
@@ -118,6 +119,10 @@ ssize_t Client::Write (const uint8_t *buffer, size_t size) {
     } else _last_sent = time(NULL);
 
     return s_ret;
+}
+
+ssize_t Client::WriteRaw (const uint8_t *buffer, size_t size) {
+    return sendto(_fd, buffer, size, 0, (const struct sockaddr *) &_address, sizeof(struct sockaddr_in));
 }
 
 ssize_t Client::SendMsg (msg_type_t type) {
@@ -313,6 +318,15 @@ void UdpDistributor::Worker () {
                     iit->second->Associate();
                 }
                 break;
+            case M_COMPRESSED_ETHERNET_FRAME: { // FIXME
+                infomap_t::iterator it = _infos.begin();
+                while (it != _infos.end()) {
+                    if (it->first != port) {
+                        it->second->WriteRaw(buffer, len);
+                    }
+                }
+                break;
+            }
             case M_ASSOCIATE_REQUEST: {
                 log_logic("Got M_ASSOCIATE_REQUEST from client on port %" PRIport ".\n", port);
                 if (msg_len != sizeof(net_t)) {

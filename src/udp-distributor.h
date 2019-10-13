@@ -66,6 +66,9 @@ public:
     // write an ethrnet frame to client
     ssize_t Write (const uint8_t *buffer, size_t size);
 
+    // write packet to client
+    ssize_t WriteRaw (const uint8_t *buffer, size_t size);
+
 private:
     // send a message with no payload
     ssize_t SendMsg (msg_type_t type);

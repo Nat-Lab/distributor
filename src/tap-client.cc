@@ -9,7 +9,7 @@
 
 namespace distributor {
 
-TapClient::TapClient (const char *tap_name, size_t tap_name_sz, in_addr_t server_addr, in_port_t port, net_t net) : DistributorClient(server_addr, port, net) {
+TapClient::TapClient (const char *tap_name, size_t tap_name_sz, in_addr_t server_addr, in_port_t port, net_t net,  bool compression) : DistributorClient(server_addr, port, net, compression) {
     if (tap_name_sz >= IF_NAMESIZE) {
         log_warn("TAP name '%s' too long, will be truncate.\n", tap_name);
     }

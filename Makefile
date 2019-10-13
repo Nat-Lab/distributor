@@ -8,10 +8,10 @@ CC=c++
 all: $(TARGETS)
 
 distributor: $(OBJS_distributor)
-	$(CC) -o distributor $(OBJS_distributor) $(CFLAGS) -lpthread
+	$(CC) -o distributor $(OBJS_distributor) $(CFLAGS) -lpthread -llz4
 
 dist-client: $(OBJS_client)
-	$(CC) -o dist-client $(OBJS_client) $(CFLAGS) -lpthread
+	$(CC) -o dist-client $(OBJS_client) $(CFLAGS) -lpthread -llz4
 
 %.o: %.cc
 	$(CC) -c -o $@ $< $(CFLAGS)
