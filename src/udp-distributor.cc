@@ -99,17 +99,17 @@ void Client::Saw () {
 bool Client::IsAlive () {
     int64_t lastseen_diff = time(NULL) - _last_seen;
     int64_t lastsent_diff = time(NULL) - _last_sent;
-    log_logic("Client %s:%d last seen %" PRIi64 " seconds ago, last sent %" PRIi64 " seconds ago.\n", inet_ntoa(_address.sin_addr), ntohs(_address.sin_port), lastseen_diff, lastsent_diff);
+    log_logic("Client %s:%d last seen %" PRIi64 " seconds ago, last sent %" PRIi64 " seconds ago.\n", inet_ntoa(_address.Ref().sin_addr), ntohs(_address.Ref().sin_port), lastseen_diff, lastsent_diff);
 
     // Need to request keepalive, but still assume client is alive.
     if (lastsent_diff >= DIST_UDP_KEEPALIVE && lastseen_diff >= DIST_UDP_KEEPALIVE) {
-        log_debug("Client %s:%d last seen %" PRIi64 " seconds ago, last sent %" PRIi64 " seconds ago, send KEEPALIVE.\n", inet_ntoa(_address.sin_addr), ntohs(_address.sin_port), lastseen_diff, lastsent_diff);
+        log_debug("Client %s:%d last seen %" PRIi64 " seconds ago, last sent %" PRIi64 " seconds ago, send KEEPALIVE.\n", inet_ntoa(_address.Ref().sin_addr), ntohs(_address.Ref().sin_port), lastseen_diff, lastsent_diff);
         Keepalive();
         return true;
     }
 
     if (lastseen_diff >= DIST_UDP_KEEPALIVE * DIST_UDP_RETRIES) {
-        log_debug("Client %s:%d last seen %" PRIi64 " seconds ago, last sent %" PRIi64 " seconds ago, assume client dead.\n", inet_ntoa(_address.sin_addr), ntohs(_address.sin_port), lastseen_diff, lastsent_diff);
+        log_debug("Client %s:%d last seen %" PRIi64 " seconds ago, last sent %" PRIi64 " seconds ago, assume client dead.\n", inet_ntoa(_address.Ref().sin_addr), ntohs(_address.Ref().sin_port), lastseen_diff, lastsent_diff);
         SendMsg(M_DISCONNECT);
         return false;
     }
