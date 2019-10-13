@@ -324,6 +324,7 @@ void UdpDistributor::Worker () {
                     if (it->first != port) {
                         it->second->WriteRaw(buffer, len);
                     }
+                    it++;
                 }
                 break;
             }

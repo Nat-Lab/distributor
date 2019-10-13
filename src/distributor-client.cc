@@ -250,7 +250,7 @@ void DistributorClient::SocketWorker () {
                     case M_COMPRESSED_ETHERNET_FRAME: {
                         const comp_hdr_t *comp_hdr = (const comp_hdr_t *) msg_ptr;
                         const uint8_t *frame = msg_ptr + sizeof(comp_hdr_t);
-                        int dec_sz = LZ4_decompress_safe((const char*) frame, (char *) dec_buffer, ntohs(comp_hdr->frame_len), DIST_CLIENT_BUF_SZ);
+                        int dec_sz = LZ4_decompress_safe((const char*) frame, (char *) dec_buffer,  msg_len - sizeof(comp_hdr_t), ntohs(comp_hdr->frame_len));
                         if (dec_sz < 0) {
                             log_warn("Failed to decompress ethernet frame from server.\n");
                             continue;
