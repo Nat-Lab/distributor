@@ -3,6 +3,9 @@
 #include "types.h"
 #include <stdint.h>
 #include <net/ethernet.h>
+#ifdef __linux__
+#include <netinet/ether.h>
+#endif
 #include <unordered_map>
 #include <mutex>
 
