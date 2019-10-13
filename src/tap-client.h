@@ -8,7 +8,7 @@ namespace distributor {
 
 class TapClient : public DistributorClient {
 public:
-    TapClient (const char *tap_name, size_t tap_name_sz, in_addr_t server_addr, in_port_t port, net_t net);
+    TapClient (const char *tap_name, size_t tap_name_sz, int tap_mtu, in_addr_t server_addr, in_port_t port, net_t net);
 
     // Note that TAP name does not necessarily to be tap_name specified in constructor.
     const char* GetTapName() const;
@@ -21,6 +21,7 @@ private:
 
     char _tap_name[IF_NAMESIZE];
     int _fd;
+    int _tap_mtu;
     bool _started;
 };
 

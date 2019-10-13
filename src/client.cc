@@ -21,7 +21,7 @@ void handle_signal (__attribute__((unused)) int sig) {
 }
 
 void help (const char *me) {
-    fprintf(stderr, "usage: %s [-h] -d DEV -s SERVER_ADDR -p SERVER_PORT -n NET\n", me);
+    fprintf(stderr, "usage: %s [-h] [-m MTU] -d DEV -s SERVER_ADDR -p SERVER_PORT -n NET\n", me);
     fprintf(stderr, "\n");
     fprintf(stderr, "TUN/TAP based Linux client for distributor.\n");
     fprintf(stderr, "\n");
@@ -33,6 +33,8 @@ void help (const char *me) {
     fprintf(stderr, "\n");
     fprintf(stderr, "optional arguments:\n");
     fprintf(stderr, "  -h               Print this help message and exit.\n");
+    fprintf(stderr, "  -m MTU           Set MTU for TAP interface. (default: 1400, use multiple of\n");
+    fprintf(stderr, "                   1400 for best performance)\n");
 }
 
 int main (int argc, char **argv) {
@@ -41,23 +43,27 @@ int main (int argc, char **argv) {
     char *server = nullptr;
     in_port_t port = 0;
     net_t net = 0;
+    int mtu = 1400;
     bool net_set = false;
 
-    while ((opt = getopt(argc, argv, "hd:s:p:n:")) != -1) {
+    while ((opt = getopt(argc, argv, "hm:d:s:p:n:")) != -1) {
         switch (opt) {
+            case 'm':
+                mtu = atoi(optarg);
+                continue;
             case 'd': 
                 dev = strdup(optarg);
-                break;
+                continue;
             case 's':
                 server = strdup(optarg);
-                break;
+                continue;
             case 'p':
                 port = (in_port_t) atoi(optarg);
-                break;
+                continue;
             case 'n':
                 net = (net_t) atoi(optarg);
                 net_set = true;
-                break;
+                continue;
             case 'h':
                 help (argv[0]);
                 return 0;
@@ -75,7 +81,7 @@ int main (int argc, char **argv) {
     signal(SIGINT, handle_signal);
     signal(SIGTERM, handle_signal);
 
-    TapClient client (dev, strlen(dev), inet_addr(server), htons(port), net);
+    TapClient client (dev, strlen(dev), mtu, inet_addr(server), htons(port), net);
     ::client = &client;
     client.Start();
     client.Join();

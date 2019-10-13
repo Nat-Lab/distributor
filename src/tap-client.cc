@@ -9,12 +9,13 @@
 
 namespace distributor {
 
-TapClient::TapClient (const char *tap_name, size_t tap_name_sz, in_addr_t server_addr, in_port_t port, net_t net) : DistributorClient(server_addr, port, net) {
+TapClient::TapClient (const char *tap_name, size_t tap_name_sz, int tap_mtu, in_addr_t server_addr, in_port_t port, net_t net) : DistributorClient(server_addr, port, net) {
     if (tap_name_sz >= IF_NAMESIZE) {
         log_warn("TAP name '%s' too long, will be truncate.\n", tap_name);
     }
     strncpy(_tap_name, tap_name, IFNAMSIZ);
     _started = false;
+    _tap_mtu = tap_mtu;
 }
 
 const char* TapClient::GetTapName() const {
@@ -61,6 +62,22 @@ bool TapClient::NicStart () {
     if (ioctl_ret < 0) {
         log_warn("SIOCSIFFLAGS (IFF_UP) ioctl(): %s. The client MIGHT NOT work properly.\n", strerror(errno));
     }
+
+    if (_tap_mtu < 0) {
+        log_fatal("Invalid TAP MTU %d.\n", _tap_mtu);
+        return false;
+    }
+
+    if (_tap_mtu % 1400 != 0) {
+        log_notice("TAP MTU is %d. Use multiple of 1400 to get the best performance.\n", _tap_mtu);
+    }
+
+    ifr.ifr_ifru.ifru_mtu = _tap_mtu;
+    ioctl_ret = ioctl(iofd, SIOCSIFMTU, (caddr_t) &ifr);
+    if (ioctl_ret < 0) {
+        log_warn("SIOCSIFMTU ioctl(): %s. The client MIGHT NOT work properly.\n", strerror(errno));
+    }
+
     close(iofd);
 
     return true;
