@@ -21,15 +21,15 @@ void handle_signal (__attribute__((unused)) int sig) {
 }
 
 void help (const char *me) {
-    fprintf(stderr, "usage: %s [-h] -b BIND_ADDR -p BIND_PORT\n", me);
+    fprintf(stderr, "usage: %s [-h] [-b BIND_ADDR] -p BIND_PORT\n", me);
     fprintf(stderr, "\n");
     fprintf(stderr, "distributor: virtual ethernet switch.\n");
     fprintf(stderr, "\n");
     fprintf(stderr, "required arguments:\n");
-    fprintf(stderr, "  -b BIND_ADDR     Address to bind on.\n");
     fprintf(stderr, "  -p BIND_PORT     Port to run on.\n");
     fprintf(stderr, "\n");
     fprintf(stderr, "optional arguments:\n");
+    fprintf(stderr, "  -b BIND_ADDR     Address to bind on (default: 0.0.0.0).\n");
     fprintf(stderr, "  -h               Print this help message and exit.\n");
 }
 
@@ -42,10 +42,10 @@ int main (int argc, char **argv) {
         switch (opt) {
             case 'b':
                 bind_addr = strdup(optarg);
-                break;
+                continue;
             case 'p':
                 port = (in_port_t) atoi(optarg);
-                break;
+                continue;
             case 'h':
                 help (argv[0]);
                 return 0;
@@ -55,7 +55,7 @@ int main (int argc, char **argv) {
         }
     }
 
-    if (bind_addr == nullptr || port == 0) {
+    if (port == 0) {
         help (argv[0]);
         return 1;
     }
@@ -63,11 +63,11 @@ int main (int argc, char **argv) {
     signal(SIGINT, handle_signal);
     signal(SIGTERM, handle_signal);
 
-    UdpDistributor dist (inet_addr(bind_addr), htons(port));
+    UdpDistributor dist (bind_addr == nullptr ? INADDR_ANY : inet_addr(bind_addr), htons(port));
     ::dist = &dist;
     dist.Start();
     dist.Join();
 
-    free(bind_addr);
+    if (bind_addr != nullptr) free(bind_addr);
     return 0;
 } 
