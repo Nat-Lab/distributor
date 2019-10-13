@@ -310,7 +310,7 @@ void DistributorClient::NicWorker () {
                 continue;
             }
             compressed_size = LZ4_compress_default((const char *) comp_buffer, (char *) frame_ptr, read_len, max_frame_len);
-            comp_hdr->frame_len = htons((uint16_t) compressed_size);
+            comp_hdr->frame_len = htons((uint16_t) read_len);
             if (compressed_size <= 0) {
                 log_warn("Error compressing data.\n");
                 continue;
