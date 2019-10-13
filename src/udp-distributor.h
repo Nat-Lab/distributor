@@ -11,9 +11,11 @@
 #include <thread>
 #include <memory>
 #include <mutex>
-#include <unordered_map>
 #include <condition_variable>
 #include <chrono>
+#include <boost/multi_index_container.hpp>
+#include <boost/multi_index/hashed_index.hpp>
+#include <boost/multi_index/mem_fun.hpp>
 
 #define DIST_MAGIC 0x5EED
 
@@ -25,20 +27,19 @@ public:
     InetSocketAddress (const struct sockaddr_in &addr);
     bool operator== (const InetSocketAddress &other) const;
     size_t Hash() const;
+    const struct sockaddr_in& Ref() const;
+    const struct sockaddr_in* Ptr() const;
 
 private:
     struct sockaddr_in address;
     size_t hash;
 };
 
-class InetSocketAddressHasher {
-public:
-    size_t operator() (const InetSocketAddress &key) const;
-};
+size_t hash_value(const InetSocketAddress &i);
 
 class Client {
 public:
-    Client (const struct sockaddr_in &address, int fd);
+    Client (port_t port, const InetSocketAddress &address, int fd);
     const struct sockaddr_in& AddrRef () const;
     const struct sockaddr_in* AddrPtr () const;
 
@@ -66,16 +67,23 @@ public:
     // write an ethrnet frame to client
     ssize_t Write (const uint8_t *buffer, size_t size);
 
+    const InetSocketAddress& GetAddress() const;
+    port_t GetPort() const;
+
 private:
     // send a message with no payload
     ssize_t SendMsg (msg_type_t type);
 
-    struct sockaddr_in _address;
+    InetSocketAddress _address;
     time_t _last_seen;
     time_t _last_sent;
     uint8_t _send_buffer[DIST_CLIENT_SEND_BUFSZ];
     int _fd;
+    port_t _port;
 };
+
+struct IndexPort {};
+struct IndexAddr {};
 
 class UdpDistributor : private Switch {
 public:
@@ -90,8 +98,22 @@ public:
     // Join threads
     void Join ();
 
-    typedef std::unordered_map<InetSocketAddress, port_t, InetSocketAddressHasher> clientsmap_t;
-    typedef std::unordered_map<port_t, std::shared_ptr<Client>> infomap_t;
+    typedef boost::multi_index_container<
+        std::shared_ptr<Client>,
+        boost::multi_index::indexed_by<
+            boost::multi_index::hashed_unique<
+                boost::multi_index::tag<IndexPort>,
+                boost::multi_index::const_mem_fun<Client, port_t, &Client::GetPort>
+            >,
+            boost::multi_index::hashed_unique<
+                boost::multi_index::tag<IndexAddr>,
+                boost::multi_index::const_mem_fun<Client, const InetSocketAddress&, &Client::GetAddress>
+            >
+        >
+    > clientdb_t;
+
+    //typedef std::unordered_map<InetSocketAddress, port_t, InetSocketAddressHasher> clientsmap_t;
+    //typedef std::unordered_map<port_t, std::shared_ptr<Client>> infomap_t;
 
 private:
     // Worker thread
@@ -108,8 +130,7 @@ private:
     in_addr_t _local_addr;
     port_t _next_port;
     int _fd;
-    clientsmap_t _clients;
-    infomap_t _infos;
+    clientdb_t _clients;
     bool _running;
     std::vector<std::thread> _threads;
     std::mutex _scavenger_mtx;

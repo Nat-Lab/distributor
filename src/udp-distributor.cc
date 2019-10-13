@@ -19,12 +19,20 @@ bool InetSocketAddress::operator== (const InetSocketAddress &other) const {
     return memcmp(&other, &address, sizeof(struct sockaddr_in)) == 0;
 }
 
+const struct sockaddr_in& InetSocketAddress::Ref() const {
+    return address;
+}
+
+const struct sockaddr_in* InetSocketAddress::Ptr() const {
+    return &address;
+}
+
 size_t InetSocketAddress::Hash() const {
     return hash;
 }
 
-size_t InetSocketAddressHasher::operator() (const InetSocketAddress &key) const {
-    return key.Hash();
+size_t hash_value(const InetSocketAddress &addr) {
+    return addr.Hash();
 }
 
 UdpDistributor::UdpDistributor(in_addr_t local_addr, in_port_t local_port) {
@@ -34,20 +42,29 @@ UdpDistributor::UdpDistributor(in_addr_t local_addr, in_port_t local_port) {
     _next_port = 1;
 }
 
-Client::Client (const struct sockaddr_in &address, int fd) {
-    memcpy(&_address, &address, sizeof(struct sockaddr_in));
+Client::Client (port_t port, const InetSocketAddress &address, int fd) {
+    _address = address;
     _last_seen = _last_sent = time(NULL);
     _fd = fd;
+    _port = port;
     dist_header_t *hdr = (dist_header_t *) _send_buffer;
     hdr->magic = htons(DIST_MAGIC);
 }
 
-const struct sockaddr_in& Client::AddrRef () const {
+const InetSocketAddress& Client::GetAddress() const {
     return _address;
 }
 
+port_t Client::GetPort() const {
+    return _port;
+}
+
+const struct sockaddr_in& Client::AddrRef () const {
+    return _address.Ref();
+}
+
 const struct sockaddr_in* Client::AddrPtr () const {
-    return &_address;
+    return _address.Ptr();
 }
 
 ssize_t Client::Disconnect () {
@@ -191,10 +208,9 @@ void UdpDistributor::Stop () {
     disconnect_request.magic = DIST_MAGIC;
     disconnect_request.msg_type = M_DISCONNECT;*/
 
-    for (infomap_t::iterator it = _infos.begin(); it != _infos.end(); it++) {
-        Client &c = *(it->second);
+    for(clientdb_t::iterator it = _clients.begin(); it != _clients.end(); it++) {
+        Client &c = *(it->get());
         log_debug("Sending DISCONNECT to %s:%d.\n", inet_ntoa(c.AddrRef().sin_addr), ntohs(c.AddrRef().sin_port));
-        //ssize_t s_ret = sendto(_fd, &disconnect_request, sizeof(dist_header_t), 0, (const struct sockaddr *) c.AddrPtr(), sizeof(struct sockaddr_in));
         ssize_t s_ret = c.Disconnect();
         if (s_ret < 0) log_error("Error sending DISCONNECT to %s:%d: %s.\n", inet_ntoa(c.AddrRef().sin_addr), ntohs(c.AddrRef().sin_port), strerror(errno));
     }
@@ -214,7 +230,6 @@ void UdpDistributor::Stop () {
 
     log_debug("Cleaning up associations...\n");
     _clients.clear();
-    _infos.clear();
 
     // TODO: clean up threads vector
 
@@ -265,41 +280,29 @@ void UdpDistributor::Worker () {
         }
 
         // find/create client info
-        InetSocketAddress c (client_addr);
-        clientsmap_t::iterator cit = _clients.find(c);
-        infomap_t::iterator iit = _infos.end();
-        if (cit == _clients.end()) {
+        InetSocketAddress client_addr_c (client_addr);
+
+        auto &db = _clients.get<IndexAddr>();
+        auto it = db.find(client_addr_c);
+
+        Client *client = nullptr;
+
+        if (it == db.end()) {
             log_debug("Client info for %s:%d does not exist, creating...\n", inet_ntoa(client_addr.sin_addr), ntohs(client_addr.sin_port));
             port_t port = _next_port++;
-            std::pair<clientsmap_t::iterator, bool> clients_find_ret = _clients.insert(std::make_pair(c, port));
+            std::shared_ptr<Client> new_client = std::make_shared<Client> (port, client_addr_c, _fd);
+            auto insert_rslt = _clients.insert(new_client);
+            client = insert_rslt.first->get();
+            client->Associate();
+        } 
 
-            cit = clients_find_ret.first;
-            if (!clients_find_ret.second) {
-                log_warn("Insert client -> port mapping returned element exist.\n");
-            }
-
-            std::pair<infomap_t::iterator, bool> info_find_ret = _infos.insert(std::make_pair(port, std::make_shared<Client>(client_addr, _fd)));
-
-            iit = info_find_ret.first;
-            if (!info_find_ret.second) {
-                log_warn("Insert port -> info mapping returned element exist.\n");
-            }
-            
-            iit->second->Associate();
-            log_info("New client from %s:%d, assigned port: %" PRIport ".\n", inet_ntoa(client_addr.sin_addr), ntohs(client_addr.sin_port), port);
+        client = it->get();
+        if (client == nullptr) {
+            log_fatal("Internal error. Client missing from DB.\n");
+            continue;
         }
 
-        port_t port = cit->second;
-        if (iit == _infos.end()) iit = _infos.find(port);
-        if (iit == _infos.end()) {
-            log_warn("Client found in client -> port mapping but not port -> info mapping.\n");
-            std::pair<infomap_t::iterator, bool> info_find_ret = _infos.insert(std::make_pair(port, std::make_shared<Client>(client_addr, _fd)));
-
-            iit = info_find_ret.first;
-            if (!info_find_ret.second) {
-                log_warn("Re-Insert port -> info mapping returned element exist.\n");
-            }
-        }
+        port_t port = client->GetPort();
 
         size_t msg_len = (size_t) len - sizeof(dist_header_t);
         const uint8_t *msg_ptr = buffer + sizeof(dist_header_t);
@@ -310,7 +313,7 @@ void UdpDistributor::Worker () {
                 log_logic("Got M_ETHERNET_FRAME from client on port %" PRIport ".\n", port);
                 if (!Forward(port, msg_ptr, msg_len)) {
                     log_info("Sending associate request to client on port %" PRIport ".\n", port);
-                    iit->second->Associate();
+                    client->Associate();
                 }
                 break;
             case M_ASSOCIATE_REQUEST: {
@@ -322,12 +325,12 @@ void UdpDistributor::Worker () {
                 net_t net = ntohl(*(const net_t *) msg_ptr);
                 log_info("Associating client on port %" PRIport " with network %" PRInet ".\n", port, net);
                 Plug(net, port);
-                iit->second->AckAssociate();
+                client->AckAssociate();
                 break;
             }
             case M_KEEPALIVE_REQUEST: 
                 log_logic("Got M_KEEPALIVE_REQUEST from client on port %" PRIport ".\n", port);
-                iit->second->AckKeepalive();
+                client->AckKeepalive();
                 break;
             case M_KEEPALIVE_RESPOND:
                 log_logic("Got M_KEEPALIVE_RESPOND from client on port %" PRIport ".\n", port);
@@ -336,8 +339,7 @@ void UdpDistributor::Worker () {
                 log_logic("Got M_DISCONNECT from client on port %" PRIport ".\n", port);
                 log_info("Got disconnect request from client on port %" PRIport ", unregister client.\n", port);
                 Unplug(port);
-                _clients.erase(cit);
-                _infos.erase(iit);
+                db.erase(it); // FIXME?
                 continue;
             }
             default:
@@ -347,7 +349,7 @@ void UdpDistributor::Worker () {
 
         // "continue" not called (i.e. valid msg from client, update last seen.)
         log_logic("Updating last seen for client on port %" PRIport ".\n", port);
-        iit->second->Saw();
+        client->Saw();
 
         // FIXME: what if iit/cit got deleted during message processing?
     }
@@ -360,40 +362,34 @@ void UdpDistributor::Scavenger () {
     log_debug("Scavenger started.\n");
     while (_running) {
         std::unique_lock<std::mutex> lock (_scavenger_mtx);
-        infomap_t::iterator iit = _infos.begin();
-        while (iit != _infos.end()) {
-            if (!iit->second->IsAlive()) {
-                // client is gone, remove it.
-                port_t port = iit->first;
-                iit->second->Disconnect();
-                log_info("Client on port %" PRIport " seems to be dead, remove.\n", port);
-                Unplug(port);
-                clientsmap_t::const_iterator cit = _clients.find(InetSocketAddress(iit->second->AddrRef()));
-                if (cit == _clients.end()) {
-                    log_error("Try to remove client but port info missing in addr -> port mapping.\n");
-                } else _clients.erase(cit);
-                iit = _infos.erase(iit);
-            } else iit++;
+        clientdb_t::iterator it = _clients.begin();
+        while (it != _clients.end()) {
+            if (!it->get()->IsAlive()) {
+                log_info("Client on port %" PRIport " seems to be dead, remove.\n", it->get()->GetPort());
+                it->get()->Disconnect();
+                it = _clients.erase(it);
+            } else it++;
         }
         if (_scavenger_cv.wait_for(lock, std::chrono::seconds(1)) != std::cv_status::timeout) break;
     }
     log_info("Scavenger stopped.\n");
 }
 
-void UdpDistributor::Send (port_t client, const uint8_t *buffer, size_t size) {
+void UdpDistributor::Send (port_t port, const uint8_t *buffer, size_t size) {
     if (!_running) {
         log_error("Send called but Distributor was not running.\n");
         return;
     }
 
-    infomap_t::const_iterator iit = _infos.find(client);
+    auto &db = _clients.get<IndexPort>();
+    auto it = db.find(port);
 
-    if (iit == _infos.end()) {
-        log_error("Send called on unknow port %" PRIport ".\n", client);
+    if (it == db.end()) {
+        log_error("Send called on unknow port %" PRIport ".\n", port);
         return;
     }
 
-    iit->second->Write(buffer, size);
+    it->get()->Write(buffer, size);
 }
 
 }
