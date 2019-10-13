@@ -315,6 +315,7 @@ void DistributorClient::NicWorker () {
                 log_warn("Error compressing data.\n");
                 continue;
             }
+            log_debug("compress: orig size: %zu, comp size: %d.\n", read_len, compressed_size);
         }
 
         size_t pkt_len = sizeof(dist_header_t) + (_compression ? compressed_size : (size_t) read_len);
