@@ -3,6 +3,9 @@
 #include <unistd.h>
 #include <arpa/inet.h>
 #include <string.h>
+#include <fcntl.h>
+#include <sys/select.h>
+#include <sys/types.h>
 
 namespace distributor {
 
@@ -47,10 +50,47 @@ void DistributorClient::Start () {
         return;
     }
 
+    // _ev_pipe: to stop udp recv thread
+    int pipe_ret = pipe(_ev_pipe);
+    if (pipe_ret < 0) {
+        log_fatal("pipe(): %s\n", strerror(errno));
+        return;
+    }
+
+    log_debug("pipe(): left: %d, right: %d\n", _ev_pipe[0], _ev_pipe[1]);
+    write(_ev_pipe[1], &_running, 1);
+    log_debug("INFO: %s\n", strerror(errno));
+    read(_ev_pipe[0], &_running, 1);
+    log_debug("INFO: %s\n", strerror(errno));
+
+    int flags = fcntl(_ev_pipe[1], F_GETFL);
+    if (flags == -1) {
+        log_fatal("fcntl(): %s\n", strerror(errno));
+        return;
+    }
+
+    int fnctl_ret = fcntl (_ev_pipe[1], F_SETFL, flags | O_NONBLOCK);
+    if (fnctl_ret < 0) {
+        log_fatal("fcntl(): %s\n", strerror(errno));
+        return;
+    }
+
     _fd = socket(AF_INET, SOCK_DGRAM, 0);
 
     if (_fd < 0) {
         log_fatal("socket(): %s\n", strerror(errno));
+        return;
+    }
+
+    flags = fcntl(_fd, F_GETFL);
+    if (flags == -1) {
+        log_fatal("fcntl(): %s\n", strerror(errno));
+        return;
+    }
+
+    fnctl_ret = fcntl (_fd, F_SETFL, flags | O_NONBLOCK);
+    if (fnctl_ret < 0) {
+        log_fatal("fcntl(): %s\n", strerror(errno));
         return;
     }
 
@@ -87,12 +127,16 @@ void DistributorClient::Stop () {
     log_debug("Request Disconnect...\n");
     SendMsg(M_DISCONNECT);
 
-    log_debug("Closing socket...\n");
-    close(_fd);
+    _running = false;
 
     NicStop();
 
-    _running = false;
+    log_debug("Interrputing socket worker...\n");
+    ssize_t w_ret = write(_ev_pipe[1], &_running, sizeof(bool));
+    if (w_ret < 0) {
+        log_error("Error interrputing: write(): %s\n", strerror(errno));
+    }
+
     _state = S_IDLE;
 }
 
@@ -131,7 +175,38 @@ void DistributorClient::SocketWorker () {
     log_debug("Socket worker started.\n");
     uint8_t buffer[DIST_CLIENT_BUF_SZ];
     struct sockaddr_in recv_addr;
+    fd_set rfds;
+    FD_ZERO(&rfds);
+    FD_SET(_fd, &rfds);
+    FD_SET(_ev_pipe[0], &rfds);
+    int max_fd = (_ev_pipe[0] > _fd ? _ev_pipe[0] : _fd) + 1;
+
     while (_running) {
+            FD_ZERO(&rfds);
+    FD_SET(_fd, &rfds);
+    FD_SET(_ev_pipe[0], &rfds);
+        int sel_ret = select(max_fd, &rfds, NULL, NULL, NULL);
+
+        if (sel_ret < 0) {
+            log_fatal("select(): %s\n", strerror(errno));
+            break;
+        }
+
+        if (FD_ISSET(_ev_pipe[0], &rfds)) {
+            if (_running) continue;
+            log_notice("Interrputed.\n");
+            log_debug("Closing socket...\n");
+            close(_ev_pipe[0]);
+            close(_ev_pipe[1]);
+            close(_fd);
+            break;
+        }
+
+        if (!FD_ISSET(_fd, &rfds)) {
+            log_warn("Noting happened but select() returned.\n");
+            continue;
+        }
+
         ssize_t len = recv(_fd, buffer, DIST_CLIENT_BUF_SZ, 0);
         _last_recv = time(NULL);
 
@@ -280,7 +355,7 @@ void DistributorClient::NicWorker () {
         }
         if (read_len < 0) {
             log_error("Error reading NIC: %s.\n", strerror(errno));
-            continue;
+            break;
         }
         if (_state != S_ASSOCIATED) {
             log_notice("Discared ethernet frame from NIC because client is not yet associated.\n");
@@ -330,7 +405,6 @@ void DistributorClient::Pinger () {
         }
         if (_pinger_cv.wait_for(lock, std::chrono::seconds(1)) != std::cv_status::timeout) break;
     }
-    // FIXME: race-condition on SendMsg()?
     log_debug("Pinger stopped.\n");
 }
 

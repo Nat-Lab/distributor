@@ -77,6 +77,7 @@ private:
     bool _running;
     std::mutex _pinger_mtx;
     std::condition_variable _pinger_cv;
+    int _ev_pipe[2];
 };
 
 }
