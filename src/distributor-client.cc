@@ -95,6 +95,10 @@ void DistributorClient::Join () {
     }
 }
 
+DistributorClientState DistributorClient::GetState () const {
+    return _state;
+}
+
 ssize_t DistributorClient::SendMsg (msg_type_t type) {
     if (!_running) {
         log_error("Client not running.\n");

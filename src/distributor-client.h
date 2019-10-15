@@ -38,6 +38,9 @@ public:
     // Join threads
     void Join ();
 
+    // Get state
+    DistributorClientState GetState () const;
+
 protected:
     // Spin up NIC
     virtual bool NicStart () = 0;
