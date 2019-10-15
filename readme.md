@@ -17,4 +17,4 @@ After compilation, you will find `distributor` and `tap-client`, which are the d
 
 ### Development
 
-Protocol specifications can be found under the `doc/` folder. If you don't care about the protocol but simply want to build your own client, take a look at `src/fd-client.h` and `src/fd-client.cc`. `FdClient` provides you with a file descriptor similar to TUN/TAP, that you can write to or read from to get ethernet traffic on and of the virtual network.
+Protocol specifications can be found under the `doc/` folder. If you don't care about the protocol but simply want to build your own client, take a look at `src/fd-client.h` and `src/fd-client.cc`. `FdClient` provides you with a file descriptor similar to TUN/TAP, that you can write to or read from to get ethernet traffic on and oof the virtual network.
