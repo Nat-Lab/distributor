@@ -28,13 +28,13 @@ void DistributorClient::SetNetwork (net_t net) {
         hdr->msg_type = M_ASSOCIATE_REQUEST;
         uint8_t *msg_ptr = buffer + sizeof(dist_header_t);
         *((uint32_t *) msg_ptr) = htonl(net);
-        ssize_t s_ret = sendto(_fd, hdr, sizeof(dist_header_t) + sizeof(net_t), 0, (const struct sockaddr *) &_server, sizeof(struct sockaddr_in));
+        ssize_t s_ret = send(_fd, hdr, sizeof(dist_header_t) + sizeof(net_t), 0);
         if (s_ret < 0) {
-            log_error("sendto(): %s.\n", strerror(errno));
+            log_error("send(): %s.\n", strerror(errno));
             return;
         }
         if ((size_t) s_ret != sizeof(dist_header_t) + sizeof(net_t)) {
-            log_error("sendto() returned %zu.\n", s_ret);
+            log_error("send() returned %zu.\n", s_ret);
             return;
         }
         _last_sent = time(NULL);
@@ -51,6 +51,13 @@ void DistributorClient::Start () {
 
     if (_fd < 0) {
         log_fatal("socket(): %s\n", strerror(errno));
+        return;
+    }
+
+    int conn_ret = connect(_fd, (const sockaddr *) &_server, sizeof(struct sockaddr_in));
+
+    if (conn_ret < 0) {
+        log_error("connect(): %s\n", strerror(errno));
         return;
     }
 
@@ -107,13 +114,13 @@ ssize_t DistributorClient::SendMsg (msg_type_t type) {
     static dist_header_t msg;
     msg.magic = htons(DIST_CLIENT_MAGIC);
     msg.msg_type = type;
-    ssize_t s_ret = sendto(_fd, &msg, sizeof(dist_header_t), 0, (const struct sockaddr *) &_server, sizeof(struct sockaddr_in));
+    ssize_t s_ret = send(_fd, &msg, sizeof(dist_header_t), 0);
     if (s_ret < 0) {
-        log_error("sendto(): %s.\n", strerror(errno));
+        log_error("send(): %s.\n", strerror(errno));
         return s_ret;
     }
     if ((size_t) s_ret != sizeof(dist_header_t)) {
-        log_error("sendto() returned %zu.\n", s_ret);
+        log_error("send() returned %zu.\n", s_ret);
         return s_ret;
     }
     _last_sent = time (NULL);
@@ -125,22 +132,16 @@ void DistributorClient::SocketWorker () {
     uint8_t buffer[DIST_CLIENT_BUF_SZ];
     struct sockaddr_in recv_addr;
     while (_running) {
-        static socklen_t saddr_len = sizeof(struct sockaddr_in);
-        ssize_t len = recvfrom(_fd, buffer, DIST_CLIENT_BUF_SZ, 0, (struct sockaddr *) &recv_addr, &saddr_len);
+        ssize_t len = recv(_fd, buffer, DIST_CLIENT_BUF_SZ, 0);
         _last_recv = time(NULL);
 
         if (len < 0) {
-            log_error("recvfrom(): %s.\n", strerror(errno));
+            log_error("recv(): %s.\n", strerror(errno));
             continue;
         }
 
         if (len == 0) {
-            log_error("recvfrom() returned 0.\n");
-            continue;
-        }
-
-        if (recv_addr.sin_addr.s_addr != _server.sin_addr.s_addr && recv_addr.sin_port != _server.sin_port) {
-            log_warn("Got packet from invalid source %s:%d.\n", inet_ntoa(recv_addr.sin_addr), ntohs(recv_addr.sin_port));
+            log_error("recv() returned 0.\n");
             continue;
         }
 
@@ -286,13 +287,13 @@ void DistributorClient::NicWorker () {
             continue;
         }
         size_t pkt_len = sizeof(dist_header_t) + (size_t) read_len;
-        ssize_t s_ret = sendto(_fd, buffer, pkt_len, 0, (const struct sockaddr *) &_server, sizeof(struct sockaddr_in));
+        ssize_t s_ret = send(_fd, buffer, pkt_len, 0);
         if (s_ret < 0) {
-            log_error("sendto(): %s.\n", strerror(errno));
+            log_error("send(): %s.\n", strerror(errno));
             return;
         }
         if ((size_t) s_ret != pkt_len) {
-            log_error("sendto() returned %zu, but pkt len is %zu.\n", (size_t) s_ret, pkt_len);
+            log_error("send() returned %zu, but pkt len is %zu.\n", (size_t) s_ret, pkt_len);
             return;
         }
         _last_sent = time(NULL);
