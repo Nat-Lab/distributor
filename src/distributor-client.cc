@@ -56,7 +56,7 @@ void DistributorClient::Start () {
         log_fatal("pipe(): %s\n", strerror(errno));
         return;
     }
-    
+
     int flags = fcntl(_ev_pipe[1], F_GETFL);
     if (flags == -1) {
         log_fatal("fcntl(): %s\n", strerror(errno));
@@ -176,19 +176,18 @@ void DistributorClient::SocketWorker () {
     int max_fd = (_ev_pipe[0] > _fd ? _ev_pipe[0] : _fd) + 1;
 
     while (_running) {
-            FD_ZERO(&rfds);
-    FD_SET(_fd, &rfds);
-    FD_SET(_ev_pipe[0], &rfds);
-        int sel_ret = select(max_fd, &rfds, NULL, NULL, NULL);
+        fd_set _rfds = rfds;
+        int sel_ret = select(max_fd, &_rfds, NULL, NULL, NULL);
 
         if (sel_ret < 0) {
             log_fatal("select(): %s\n", strerror(errno));
             break;
         }
 
-        if (FD_ISSET(_ev_pipe[0], &rfds)) {
+        if (FD_ISSET(_ev_pipe[0], &_rfds)) {
             if (_running) continue;
             log_notice("Interrputed.\n");
+            (void) read(_ev_pipe[0], buffer, DIST_CLIENT_BUF_SZ);
             log_debug("Closing socket...\n");
             close(_ev_pipe[0]);
             close(_ev_pipe[1]);
@@ -196,7 +195,7 @@ void DistributorClient::SocketWorker () {
             break;
         }
 
-        if (!FD_ISSET(_fd, &rfds)) {
+        if (!FD_ISSET(_fd, &_rfds)) {
             log_warn("Noting happened but select() returned.\n");
             continue;
         }
