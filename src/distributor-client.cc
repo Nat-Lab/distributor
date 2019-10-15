@@ -56,13 +56,7 @@ void DistributorClient::Start () {
         log_fatal("pipe(): %s\n", strerror(errno));
         return;
     }
-
-    log_debug("pipe(): left: %d, right: %d\n", _ev_pipe[0], _ev_pipe[1]);
-    write(_ev_pipe[1], &_running, 1);
-    log_debug("INFO: %s\n", strerror(errno));
-    read(_ev_pipe[0], &_running, 1);
-    log_debug("INFO: %s\n", strerror(errno));
-
+    
     int flags = fcntl(_ev_pipe[1], F_GETFL);
     if (flags == -1) {
         log_fatal("fcntl(): %s\n", strerror(errno));
