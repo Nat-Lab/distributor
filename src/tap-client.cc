@@ -13,7 +13,8 @@ TapClient::TapClient (const char *tap_name, size_t tap_name_sz, int tap_mtu, in_
     if (tap_name_sz >= IF_NAMESIZE) {
         log_warn("TAP name '%s' too long, will be truncate.\n", tap_name);
     }
-    strncpy(_tap_name, tap_name, IFNAMSIZ);
+    memset(_tap_name, 0, IF_NAMESIZE);
+    strncpy(_tap_name, tap_name, IFNAMSIZ - 1); // gcc8: -Wstringop-truncation
     _started = false;
     _tap_mtu = tap_mtu;
 }
