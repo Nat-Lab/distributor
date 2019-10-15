@@ -16,7 +16,7 @@ void handle_signal (__attribute__((unused)) int sig) {
     if (client != nullptr) {
         log_info("Got SIGINT/SIGTERM, stopping...\n");
         client->Stop();
-        exit(0);
+        //exit(0);
     }
 }
 
