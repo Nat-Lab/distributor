@@ -32,9 +32,10 @@ bool FdClient::NicStop () {
     if (_started) {
         close(_fds[0]);
         close(_fds[1]);
-    }
+    } else return false;
 
     _started = false;
+    return true;
 }
 
 ssize_t FdClient::NicRead (uint8_t *buffer, size_t buf_sz) {
