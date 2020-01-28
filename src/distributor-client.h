@@ -10,7 +10,7 @@
 #include <netinet/in.h>
 #define DIST_CLIENT_BUF_SZ 65536
 #define DIST_CLIENT_MAGIC 0x5EED
-#define DIST_CLIENT_KEEPALIVE 30
+#define DIST_CLIENT_KEEPALIVE 5
 #define DIST_CLIENT_RETRY 3
 
 namespace distributor {
