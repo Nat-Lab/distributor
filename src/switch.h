@@ -57,6 +57,9 @@ private:
     // Check if an ethernet address is broadcast.
     static bool IsBroadcast (const struct ether_addr &addr);
 
+    // Check if an ethernet address is multicast.
+    static bool IsMulticast (const struct ether_addr &addr);
+
     // port to network mapping
     portsmap_t _ports;
 

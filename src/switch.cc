@@ -119,13 +119,13 @@ bool Switch::Forward (port_t src_port, const uint8_t *frame, size_t size) {
 
     Fdb &fdb = *(fdb_it->second);
 
-    if (!IsBroadcast(*src)) {
-        log_logic("SRC address %s was not broadcast, inserting into FDB.\n", ether_ntoa(src));
+    if (!IsBroadcast(*src) && !IsMulticast(*src)) {
+        log_logic("SRC address %s was not broadcast or multicast, inserting into FDB.\n", ether_ntoa(src));
         fdb.Insert(src_port, *src);
     }
 
-    if (!IsBroadcast(*dst)) {
-        log_logic("DST address %s was not broadcast, looking up from FDB.\n", ether_ntoa(dst));
+    if (!IsBroadcast(*dst) && !IsMulticast(*dst)) {
+        log_logic("DST address %s was not broadcast or multicast, looking up from FDB.\n", ether_ntoa(dst));
         port_t dst_port = fdb.Lookup(*dst);
 
         if (dst_port != 0) {
@@ -139,7 +139,8 @@ bool Switch::Forward (port_t src_port, const uint8_t *frame, size_t size) {
         return true;
     }
 
-    log_logic("DST address is broadcast, flooding all ports on network %" PRInet ".\n", net);
+    // TODO: proper multicast
+    log_logic("DST address is broadcast or multicast, flooding all ports on network %" PRInet ".\n", net);
     Broadcast(src_port, net, frame, size);
     return true;
 }
@@ -226,6 +227,12 @@ void Switch::Broadcast (port_t src_port, net_t net, const uint8_t *frame, size_t
 bool Switch::IsBroadcast (const struct ether_addr &addr) {
     const uint16_t *a = (const uint16_t *) &addr;
     return a[0] == 0xffff && a[1] == 0xffff && a[2] == 0xffff;
+}
+
+bool Switch::IsMulticast (const struct ether_addr &addr) {
+    const uint16_t *a16 = (const uint16_t *) &addr;
+    const uint8_t *a8 = (const uint8_t *) &addr;
+    return (a16[0] == 0x3333) || (a16[0] == 0x0100 && a8[2] == 0x5e);
 }
 
 }

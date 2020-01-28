@@ -18,7 +18,7 @@ DistributorClient::DistributorClient (in_addr_t server_addr, in_port_t port, net
 
 void DistributorClient::SetNetwork (net_t net) {
     log_debug("Setting network to %" PRInet ".\n", net);
-    static uint8_t buffer[sizeof(dist_header_t) + sizeof(net_t)];
+    uint8_t buffer[sizeof(dist_header_t) + sizeof(net_t)];
     _net = net;
 
     if (_running && _state >= S_CONNECTED) {
@@ -104,7 +104,7 @@ ssize_t DistributorClient::SendMsg (msg_type_t type) {
         log_error("Client not running.\n");
         return 0;
     }
-    static dist_header_t msg;
+    dist_header_t msg;
     msg.magic = htons(DIST_CLIENT_MAGIC);
     msg.msg_type = type;
     ssize_t s_ret = sendto(_fd, &msg, sizeof(dist_header_t), 0, (const struct sockaddr *) &_server, sizeof(struct sockaddr_in));
