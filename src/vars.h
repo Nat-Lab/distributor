@@ -8,7 +8,7 @@
 
 // interval of the keepalive.
 #ifndef DIST_UDP_KEEPALIVE
-#define DIST_UDP_KEEPALIVE 60
+#define DIST_UDP_KEEPALIVE 5
 #endif // DIST_UDP_KEEPALIVE
 
 // remove clients after N times they failed to respond to keepalive
