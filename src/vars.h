@@ -13,7 +13,7 @@
 
 // remove clients after N times they failed to respond to keepalive
 #ifndef DIST_UDP_RETRIES
-#define DIST_UDP_RETRIES 3
+#define DIST_UDP_RETRIES 12
 #endif
 
 #ifndef DIST_WOROKER_READ_BUFSZ
