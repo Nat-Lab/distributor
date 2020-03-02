@@ -1,7 +1,7 @@
 distributor
 ---
 
-`distributor` is a simple virtual ethernet switch that supports up to `2^32` networks. It is meant to be used by ns-3 `RemoteNetDevice` to connect nodes in different ns-3 simulations together. 
+`distributor` is a simple virtual ethernet switch that supports up to `2^32` networks. 
 
 ### Installation
 
