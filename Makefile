@@ -1,4 +1,4 @@
-CFLAGS=-std=c++11 -O3 -Wall -Wextra
+CFLAGS+=-std=c++11 -O3 -Wall -Wextra
 TARGETS=distributor dist-client
 OBJS_distributor=src/distributor.o src/fdb.o src/switch.o src/udp-distributor.o
 OBJS_client=src/client.o src/distributor-client.o src/tap-client.o
